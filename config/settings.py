@@ -76,10 +76,15 @@ class EmailServiceConfig:
 #     "database": "",
 #     "port": 5432
 # }
+# If DATABASE_URL is set (Neon / Supabase / any Postgres), use it directly.
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Fallback if DATABASE_URL is missing (SQLite local development)
 DATABASES = {
     "drivername": "sqlite",
     "database": "fast_store.db"
 }
+
 
 # ----------------------
 # --- Media Settings ---
