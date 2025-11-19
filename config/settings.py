@@ -1,103 +1,73 @@
 import os
 from pathlib import Path
-
 from dotenv import load_dotenv
 from pydantic import BaseModel, EmailStr
 
-load_dotenv()  # Load variables from .env file
-
+# Load .env from project root (if present)
+BASE_DIR = Path(__file__).resolve().parent.parent
+env_path = BASE_DIR / ".env"
+if env_path.exists():
+    load_dotenv(env_path)
 
 class AppConfig:
-    """
-    App Configuration.
-    """
-
     class _AppConfig(BaseModel):
-        app_name: str
-        secret_key: str
-        access_token_expire_minutes: int
-        otp_secret_key: str
-        otp_expire_seconds: int
+        app_name: str | None = None
+        secret_key: str | None = None
+        access_token_expire_minutes: int | None = None
+        otp_secret_key: str | None = None
+        otp_expire_seconds: int | None = None
 
     config = _AppConfig(
         app_name=os.getenv("APP_NAME"),
         secret_key=os.getenv("SECRET_KEY"),
-        access_token_expire_minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")),
+        access_token_expire_minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES") or 30),
         otp_secret_key=os.getenv("OTP_SECRET_KEY"),
-        otp_expire_seconds=int(os.getenv("OTP_EXPIRE_SECONDS")), )
+        otp_expire_seconds=int(os.getenv("OTP_EXPIRE_SECONDS") or 360),
+    )
 
     @classmethod
     def get_config(cls) -> _AppConfig:
-        """
-        Get the App configuration.
-        """
-
         return cls.config
 
 
 class EmailServiceConfig:
-    """
-    SMTP Configuration.
-    """
-
     class _SMTPConfig(BaseModel):
-        smtp_server: str
-        smtp_port: int
-        smtp_username: EmailStr
-        smtp_password: str
-        use_local_fallback: bool
+        smtp_server: str | None = None
+        smtp_port: int | None = None
+        smtp_username: EmailStr | None = None
+        smtp_password: str | None = None
+        use_local_fallback: bool = False
 
     config = _SMTPConfig(
         smtp_server=os.getenv("SMTP_SERVER"),
-        smtp_port=int(os.getenv("SMTP_PORT")),
+        smtp_port=int(os.getenv("SMTP_PORT") or 587),
         smtp_username=os.getenv("SMTP_USERNAME"),
         smtp_password=os.getenv("SMTP_PASSWORD"),
-        use_local_fallback=os.getenv("USE_LOCAL_FALLBACK", "False").lower() == "true"
+        use_local_fallback=os.getenv("USE_LOCAL_FALLBACK", "False").lower() == "true",
     )
 
     @classmethod
     def get_config(cls) -> _SMTPConfig:
-        """
-        Get the SMTP configuration
-        """
-
         return cls.config
 
 
-# -------------------------
-# --- Database Settings ---
-# -------------------------
-
-# DATABASES = {
-#     "drivername": "postgresql",
-#     "username": "",
-#     "password": "",
-#     "host": "localhost",
-#     "database": "",
-#     "port": 5432
-# }
-# If DATABASE_URL is set (Neon / Supabase / any Postgres), use it directly.
+# --- Database (only DATABASE_URL, NO SQLITE fallback) ---
+# Set DATABASE_URL in .env or environment. Example:
+# DATABASE_URL=postgresql://user:pass@host:5432/dbname?sslmode=require
 DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    # fail fast: require DATABASE_URL
+    raise RuntimeError("DATABASE_URL not set. Please set it in your .env or environment before starting the app.")
 
-# Fallback if DATABASE_URL is missing (SQLite local development)
-DATABASES = {
-    "drivername": "sqlite",
-    "database": "fast_store.db"
-}
+# Optional supabase/neon keys (keep if you use them elsewhere)
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 
-# ----------------------
-# --- Media Settings ---
-# ----------------------
-
-BASE_DIR = Path(__file__).resolve().parent.parent
+# Media/settings
 MEDIA_DIR = BASE_DIR / "media"
-
-# Ensure the "media" directory exists
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
-# int number as MB
 MAX_FILE_SIZE = 5
 products_list_limit = 12
-
-# TODO add settings to limit register new user or close register

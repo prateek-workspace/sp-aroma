@@ -1,43 +1,30 @@
+# apps/main.py
+import logging
+
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
-from config.database import DatabaseManager
 from config.routers import RouterManager
-from config.settings import MEDIA_DIR
+from config.database import DatabaseManager
 
-# -------------------
-# --- Init Models ---
-# -------------------
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("fastapi_app")
 
-DatabaseManager().create_database_tables()
+app = FastAPI(title="FastAPI Shop", version="0.1.0")
 
-# --------------------
-# --- Init FastAPI ---
-# --------------------
 
-app = FastAPI()
+@app.on_event("startup")
+def startup_event():
+    # Import routers and include them
+    RouterManager(app).import_routers()
+    # Optionally ensure tables exist in DB (useful in dev). If using Alembic migrations
+    # exclusively you may remove the next line.
+    try:
+        DatabaseManager.create_database_tables()
+        logger.info("Ensured DB tables exist (SQLAlchemy create_all).")
+    except Exception as e:
+        logger.warning(f"create_database_tables() failed: {e}")
 
-# ------------------
-# --- Middleware ---
-# ------------------
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"])
-
-# -------------------
-# --- Static File ---
-# -------------------
-
-# add static-file support, for see images by URL
-app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
-
-# --------------------
-# --- Init Routers ---
-# --------------------
-
-RouterManager(app).import_routers()
+@app.get("/")
+def health():
+    return {"status": "ok"}

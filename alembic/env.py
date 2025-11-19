@@ -1,91 +1,94 @@
+# alembic/env.py
 import os
 import sys
 from logging.config import fileConfig
 from pathlib import Path
 
+
+# ensure project root is on sys.path
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
+
 from alembic import context
 from sqlalchemy import create_engine, pool
+from sqlalchemy.engine import Connection
+
+# Force-import all models so metadata is populated
+from apps.accounts import models as accounts_models
+from apps.products import models as products_models
+from apps.attributes import models as attributes_models
+
+from config.database import Base
+target_metadata = Base.metadata
+
+# load dotenv from project root if present
 from dotenv import load_dotenv
-
-# -------------------------------------------------------------------
-# Ensure project root is in PYTHONPATH
-# -------------------------------------------------------------------
-BASE_DIR = Path(__file__).resolve().parent.parent
-sys.path.append(str(BASE_DIR))
-
-# -------------------------------------------------------------------
-# Load environment variables
-# -------------------------------------------------------------------
-env_path = BASE_DIR / ".env"
+env_path = PROJECT_ROOT / ".env"
 if env_path.exists():
-    load_dotenv(env_path)
+    load_dotenv(dotenv_path=str(env_path))
 
-# Read Alembic Config
+# Alembic config and logging
 config = context.config
-
-# Logging config
-if config.config_file_name:
+if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# -------------------------------------------------------------------
-# Import DB Base class
-# -------------------------------------------------------------------
-from config.database import FastModel
-
-# -------------------------------------------------------------------
-# Import all models so Alembic can detect them
-# -------------------------------------------------------------------
-from apps.accounts.models import *
-from apps.attributes.models import *
-from apps.products.models import *
-
-# Use FastModel as metadata
-target_metadata = FastModel.metadata
-
-# -------------------------------------------------------------------
-# DATABASE_URL
-# -------------------------------------------------------------------
+# Get DATABASE_URL from environment (Neon)
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL missing! Add it to .env")
+    raise RuntimeError("DATABASE_URL not found — ensure `.env` is loaded before running alembic.")
 
-# -------------------------------------------------------------------
-# OFFLINE MIGRATIONS
-# -------------------------------------------------------------------
-def run_migrations_offline() -> None:
+# Provide the DB url to alembic config (some tools expect it in sqlalchemy.url)
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
+
+# Import application's Base and ensure models are imported so metadata is populated
+from config.database import Base  # noqa: E402
+
+# Import all models modules from apps so they register with Base.metadata
+apps_dir = PROJECT_ROOT / "apps"
+if apps_dir.exists():
+    for app_dir in apps_dir.iterdir():
+        if app_dir.is_dir():
+            models_file = app_dir / "models.py"
+            if models_file.exists():
+                try:
+                    __import__(f"apps.{app_dir.name}.models")
+                except Exception:
+                    # model import may fail during autogenerate if it relies on unavailable deps;
+                    # in that case autogenerate will use whatever metadata is available.
+                    pass
+
+
+def run_migrations_offline():
+    """Run migrations in 'offline' mode."""
+    url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=DATABASE_URL,
+        url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
+
     with context.begin_transaction():
         context.run_migrations()
 
-# -------------------------------------------------------------------
-# ONLINE MIGRATIONS (Neon + SSL)
-# -------------------------------------------------------------------
-def run_migrations_online() -> None:
-    engine = create_engine(
-        DATABASE_URL,
-        pool_pre_ping=True,
-        connect_args={"sslmode": "require"},
+
+def run_migrations_online():
+    """Run migrations in 'online' mode using a fresh Engine."""
+    connect_args = {"sslmode": "require"}
+
+    connectable = create_engine(
+        config.get_main_option("sqlalchemy.url"),
         poolclass=pool.NullPool,
+        connect_args=connect_args,
     )
 
-    with engine.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata,
-        )
+    with connectable.connect() as connection:
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()
 
 
-# -------------------------------------------------------------------
-# Entrypoint
-# -------------------------------------------------------------------
 if context.is_offline_mode():
     run_migrations_offline()
 else:
