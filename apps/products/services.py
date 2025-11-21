@@ -8,6 +8,7 @@ from apps.core.services.media import MediaService
 from apps.products.models import Product, ProductOption, ProductOptionItem, ProductVariant, ProductMedia
 from config import settings
 from config.database import get_db
+from database import SessionLocal
 
 
 class ProductService:
@@ -176,7 +177,7 @@ class ProductService:
     def get_item_ids_by_product_id(cls, product_id):
         item_ids_by_option = []
         item_ids_dict = {}
-        with DatabaseManager.session as session:
+        with SessionLocal() as session:
 
             # Query the ProductOptionItem table to retrieve item_ids
             items = (
@@ -253,8 +254,7 @@ class ProductService:
             limit = settings.products_list_limit
 
         products_list = []
-
-        with DatabaseManager.session as session:
+        with SessionLocal() as session:
             products = session.execute(
                 select(Product.id).limit(limit)
             )
@@ -265,7 +265,7 @@ class ProductService:
         return products_list
         # --- list by join ----
         # products_list = []
-        # with DatabaseManager.session as session:
+        # with SessionLocal() as session:
         #     products = select(
         #         Product.id,
         #         Product.product_name,
@@ -275,7 +275,7 @@ class ProductService:
         #         ProductVariant.price,
         #         ProductVariant.stock
         #     ).outerjoin(ProductMedia).outerjoin(ProductVariant)
-        #     products = session.execute(products)
+        #     products   = session.execute(products)
         #
         # for product in products:
         #     media = {'src': product.src, 'alt': product.alt} if product.src is not None else None
@@ -385,7 +385,7 @@ class ProductService:
     def delete_product_media(product_id, media_ids: list[int]):
 
         # Fetch the product media records to be deleted
-        with DatabaseManager.session as session:
+        with SessionLocal() as session:
             filters = [
                 and_(ProductMedia.product_id == product_id, ProductMedia.id == media_id)
                 for media_id in media_ids

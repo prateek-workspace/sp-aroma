@@ -104,5 +104,3 @@ class AccountService:
         if not PasswordManager.verify_password(password, user.password):
             return False
         return user
-
-    # The rest of the file remains unchanged...

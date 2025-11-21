@@ -20,7 +20,7 @@ This document lists the project's HTTP APIs with their request parameters and re
 - POST /accounts/login
   - Description: Login with credentials (OAuth2 password form).
   - Form fields: `username` (email), `password`
-  - Response (200): { access_token: string, token_type: string }
+  - Response (200): { access_token: string, token_type: string , is_superuser:bool}
 
 - POST /accounts/logout
   - Description: Logout current authenticated user.
