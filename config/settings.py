@@ -77,8 +77,15 @@ SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 
 # Media/settings
-MEDIA_DIR = BASE_DIR / "media"
-MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+# MEDIA_DIR = BASE_DIR / "media"
+# MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME")
+CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY")
+CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET")
+
 
 MAX_FILE_SIZE = 5
 products_list_limit = 12

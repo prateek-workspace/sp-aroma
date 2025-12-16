@@ -81,14 +81,17 @@ class ProductMedia(FastModel):
     id = Column(Integer, primary_key=True)
     product_id = Column(Integer, ForeignKey("products.id"))
 
-    # TODO attach image to product variants (optional)
-    # variant_ids = Column(ARRAY(Integer))
-
-    # TODO if set the position to `1` it means this is the main image
-    # position = Column(Integer)
     alt = Column(String, nullable=True)
-    src = Column(String)
-    type = Column(String)
+
+    # Cloudinary URL (FULL URL)
+    src = Column(String, nullable=False)
+
+    # image format (jpg, png, webp)
+    type = Column(String, nullable=True)
+
+    #  Cloudinary public_id (IMPORTANT)
+    cloudinary_id = Column(String, nullable=True, index=True)
+
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
 

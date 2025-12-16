@@ -4,7 +4,9 @@ from fastapi import Request
 from sqlalchemy import select, and_, or_
 
 from apps.core.date_time import DateTime
-from apps.core.services.media import MediaService
+# from apps.core.services.media import MediaService
+from apps.core.services.cloudinary_service import CloudinaryService
+
 from apps.products.models import Product, ProductOption, ProductOptionItem, ProductVariant, ProductMedia
 from config import settings
 from config.database import get_db, SessionLocal
@@ -290,24 +292,24 @@ class ProductService:
 
     @classmethod
     def create_media(cls, product_id, alt, files):
-        """
-        Save uploaded media to `media` directory and attach uploads to a product.
-        """
-
         product: Product = Product.get_or_404(product_id)
-        media_service = MediaService(parent_directory="/products", sub_directory=product_id)
 
         for file in files:
-            file_name, file_extension = media_service.save_file(file)
-            ProductMedia.create(
-                product_id=product_id,
-                alt=alt if alt is not None else product.product_name,
-                src=file_name,
-                type=file_extension
+            upload = CloudinaryService.upload_image(
+                file=file,
+                folder=f"products/{product_id}",
             )
 
-        media = cls.retrieve_media_list(product_id)
-        return media
+            ProductMedia.create(
+                product_id=product_id,
+                alt=alt or product.product_name,
+                src=upload["url"],              # FULL CLOUDINARY URL
+                type=upload["format"],
+                cloudinary_id=upload["public_id"],  # ADD THIS COLUMN
+            )
+
+        return cls.retrieve_media_list(product_id)
+
 
     @classmethod
     def retrieve_media_list(cls, product_id):
@@ -380,21 +382,16 @@ class ProductService:
 
         return cls.retrieve_single_media(media_id)
 
-    @staticmethod
-    def delete_product_media(product_id, media_ids: list[int]):
+    @classmethod
+    def delete_media_file(cls, media_id: int):
+        media = ProductMedia.get_or_404(media_id)
 
-        # Fetch the product media records to be deleted
-        with SessionLocal() as session:
-            filters = [
-                and_(ProductMedia.product_id == product_id, ProductMedia.id == media_id)
-                for media_id in media_ids
-            ]
-            media_to_delete = session.query(ProductMedia).filter(or_(*filters)).all()
+        if media.cloudinary_id:
+            CloudinaryService.delete_image(media.cloudinary_id)
 
-            # Delete the product media records
-            for media in media_to_delete:
-                ProductMedia.delete(ProductMedia.get_or_404(media.id))
-        return None
+        ProductMedia.delete(media)
+        return True
+
 
     @staticmethod
     def delete_product(product_id):
