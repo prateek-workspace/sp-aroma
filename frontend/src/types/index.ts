@@ -29,6 +29,8 @@ export interface Product {
   originalPrice?: string;
   imageUrl: string;
   categories: string[];
+  category?: string; // Backend category field
+  product_type?: string; // Backend product_type (attar/perfume)
   shortDescription: string;
   longDescription: string;
   ingredients: string;

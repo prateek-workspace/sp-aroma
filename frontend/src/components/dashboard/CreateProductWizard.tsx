@@ -12,7 +12,6 @@ interface VariantImage {
   cloudinary_id: string;
   alt?: string;
   type: string;
-  file?: File;
 }
 
 interface Variant {
@@ -27,6 +26,8 @@ interface Variant {
 interface ProductFormData {
   product_name: string;
   description: string;
+  ingredients: string;
+  how_to_use: string;
   status: string;
   options: Option[];
   variants: Variant[];
@@ -44,6 +45,8 @@ const CreateProductWizard = ({ onClose, onSuccess }: CreateProductWizardProps) =
   const [formData, setFormData] = useState<ProductFormData>({
     product_name: '',
     description: '',
+    ingredients: '',
+    how_to_use: '',
     status: 'draft',
     options: [],
     variants: [],
@@ -58,6 +61,8 @@ const CreateProductWizard = ({ onClose, onSuccess }: CreateProductWizardProps) =
     'Basic Info',
     'Options',
     'Variants',
+    'Product Images',
+    'Variant Images',
     'Preview',
   ];
 
@@ -140,32 +145,31 @@ const CreateProductWizard = ({ onClose, onSuccess }: CreateProductWizardProps) =
     setFormData({ ...formData, variants: newVariants });
   };
 
-  const handleImageUpload = async (file: File, isProductImage: boolean, variantIndex?: number) => {
+  const handleImageUpload = async (files: File[], isProductImage: boolean, variantIndex?: number) => {
     try {
-      // Upload image and get base64 preview with temp ID
-      const upload = await apiUploadImageTemp(file);
+      // Upload images to Cloudinary immediately
+      const uploads = await apiUploadImageTemp(files);
       
-      const imageData: VariantImage = {
+      const imageDataArray: VariantImage[] = uploads.map(upload => ({
         src: upload.src,
         cloudinary_id: upload.cloudinary_id,
-        alt: formData.product_name,
+        alt: upload.alt || formData.product_name,
         type: upload.type,
-        file,
-      };
+      }));
 
       if (isProductImage) {
         setFormData({
           ...formData,
-          product_images: [...formData.product_images, imageData],
+          product_images: [...formData.product_images, ...imageDataArray],
         });
       } else if (variantIndex !== undefined) {
         const newVariants = [...formData.variants];
-        newVariants[variantIndex].images.push(imageData);
+        newVariants[variantIndex].images.push(...imageDataArray);
         setFormData({ ...formData, variants: newVariants });
       }
     } catch (err) {
       console.error('Image upload failed:', err);
-      alert('Failed to upload image');
+      alert('Failed to upload image. Please try again.');
     }
   };
 
@@ -185,19 +189,9 @@ const CreateProductWizard = ({ onClose, onSuccess }: CreateProductWizardProps) =
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      // Filter out temp images (those with base64 src) for now
-      // In production, these should be uploaded to Cloudinary first
-      const submitData = {
-        ...formData,
-        product_images: [],  // Skip images for now - can be added after product creation
-        variants: formData.variants.map(v => ({
-          ...v,
-          images: []  // Skip variant images for now
-        }))
-      };
-      
-      await apiCreateProductComprehensive(submitData);
-      alert('Product created successfully! You can now add images using the edit product option.');
+      // All images are already uploaded to Cloudinary, just submit the data
+      await apiCreateProductComprehensive(formData);
+      alert('Product created successfully!');
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -231,8 +225,28 @@ const CreateProductWizard = ({ onClose, onSuccess }: CreateProductWizardProps) =
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="w-full px-4 py-2 border rounded-lg"
-                rows={4}
+                rows={3}
                 placeholder="Enter product description"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Ingredients</label>
+              <textarea
+                value={formData.ingredients}
+                onChange={(e) => setFormData({ ...formData, ingredients: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg"
+                rows={3}
+                placeholder="List the ingredients"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">How to Use</label>
+              <textarea
+                value={formData.how_to_use}
+                onChange={(e) => setFormData({ ...formData, how_to_use: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg"
+                rows={3}
+                placeholder="Instructions on how to use the product"
               />
             </div>
             <div>
@@ -371,14 +385,121 @@ const CreateProductWizard = ({ onClose, onSuccess }: CreateProductWizardProps) =
       case 4:
         return (
           <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Product Images</h3>
+            <p className="text-sm text-gray-600">Upload general product images (shown in product listings)</p>
+            
+            <div className="border-2 border-dashed rounded-lg p-8 text-center">
+              <Upload className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => {
+                  if (e.target.files) {
+                    handleImageUpload(Array.from(e.target.files), true);
+                  }
+                }}
+                className="hidden"
+                id="product-image-upload"
+              />
+              <label
+                htmlFor="product-image-upload"
+                className="cursor-pointer text-indigo-600 hover:text-indigo-800 font-medium"
+              >
+                Click to upload images (uploads to Cloudinary)
+              </label>
+              <p className="text-xs text-gray-500 mt-2">Images will be uploaded immediately</p>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {formData.product_images.map((img, index) => (
+                <div key={index} className="relative group">
+                  <img src={img.src} alt={img.alt} className="w-full h-32 object-cover rounded-lg" />
+                  <button
+                    onClick={() => handleRemoveImage(true, index)}
+                    className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 5:
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Variant-Specific Images</h3>
+            <p className="text-sm text-gray-600">Upload images for individual variants (shown when variant is selected)</p>
+            
+            <div className="space-y-6 max-h-96 overflow-y-auto">
+              {formData.variants.map((variant, vIndex) => (
+                <div key={vIndex} className="border rounded-lg p-4 bg-gray-50">
+                  <p className="font-semibold mb-3">
+                    {[variant.option1, variant.option2, variant.option3].filter(Boolean).join(' / ') || 'Default Variant'}
+                  </p>
+                  
+                  <div className="mb-3">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => {
+                        if (e.target.files) {
+                          handleImageUpload(Array.from(e.target.files), false, vIndex);
+                        }
+                      }}
+                      className="hidden"
+                      id={`variant-image-upload-${vIndex}`}
+                    />
+                    <label
+                      htmlFor={`variant-image-upload-${vIndex}`}
+                      className="cursor-pointer inline-flex items-center gap-2 bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg hover:bg-indigo-200"
+                    >
+                      <Upload className="w-4 h-4" />
+                      Upload Images
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+                    {variant.images.map((img, imgIndex) => (
+                      <div key={imgIndex} className="relative group">
+                        <img src={img.src} alt={img.alt} className="w-full h-20 object-cover rounded" />
+                        <button
+                          onClick={() => handleRemoveImage(false, imgIndex, vIndex)}
+                          className="absolute top-1 right-1 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 6:
+        return (
+          <div className="space-y-4">
             <h3 className="text-lg font-semibold">Preview Product</h3>
-            <p className="text-sm text-gray-600">Review your product before creation</p>
+            <p className="text-sm text-gray-600">This is how your product will appear on the website</p>
             
             {/* Product Card Preview */}
             <div className="border rounded-lg overflow-hidden bg-white shadow-lg max-w-sm mx-auto">
-              <div className="w-full h-64 bg-gray-200 flex items-center justify-center">
-                <p className="text-gray-400">No image (add after creation)</p>
-              </div>
+              {formData.product_images.length > 0 ? (
+                <img 
+                  src={formData.product_images[0].src} 
+                  alt={formData.product_name}
+                  className="w-full h-64 object-cover"
+                />
+              ) : (
+                <div className="w-full h-64 bg-gray-200 flex items-center justify-center">
+                  <p className="text-gray-400">No image</p>
+                </div>
+              )}
               
               <div className="p-6">
                 <h4 className="text-xl font-bold mb-2">{formData.product_name || 'Product Name'}</h4>
@@ -438,13 +559,10 @@ const CreateProductWizard = ({ onClose, onSuccess }: CreateProductWizardProps) =
               <h4 className="font-semibold mb-2">Summary</h4>
               <ul className="text-sm space-y-1 text-gray-700">
                 <li>• {formData.variants.length} variant(s)</li>
+                <li>• {formData.product_images.length} product image(s)</li>
+                <li>• {formData.variants.reduce((sum, v) => sum + v.images.length, 0)} variant-specific image(s)</li>
                 <li>• Status: {formData.status}</li>
               </ul>
-              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
-                <p className="text-xs text-blue-800">
-                  <strong>Note:</strong> Images can be added after product creation using the Product Management interface.
-                </p>
-              </div>
             </div>
           </div>
         );

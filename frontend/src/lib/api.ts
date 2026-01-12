@@ -230,26 +230,12 @@ export const apiCreateProduct = (data: any) =>
 export const apiCreateProductComprehensive = (data: any) =>
   postJson('/products/comprehensive', data);
 
-export const apiUploadImageTemp = async (file: File): Promise<{src: string, cloudinary_id: string, type: string}> => {
-  // Upload to a temporary product (we'll use product_id 0 as placeholder)
-  // Or upload directly and get cloudinary details
+export const apiUploadImageTemp = async (files: File[]): Promise<Array<{src: string, cloudinary_id: string, alt: string, type: string}>> => {
   const formData = new FormData();
-  formData.append('files', file);
+  files.forEach(file => formData.append('files', file));
   formData.append('alt', 'Product image');
   
-  // For now, create a mock response until we have a dedicated upload endpoint
-  // In production, you should have a dedicated /upload/temp endpoint
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      resolve({
-        src: reader.result as string,
-        cloudinary_id: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        type: file.type.split('/')[1] || 'image',
-      });
-    };
-    reader.readAsDataURL(file);
-  });
+  return postFormData('/products/media/upload-temp', formData).then(res => res.images);
 };
 
 export const apiUpdateProduct = (productId: number, data: any) =>

@@ -190,6 +190,43 @@ async def update_variant(variant_id: int, payload: schemas.UpdateVariantIn):
 
 
 @router.post(
+    "/media/upload-temp",
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload images temporarily (for product creation wizard)",
+    tags=["Product Image"],
+    dependencies=[
+        Depends(require_superuser),
+        Depends(Permission.is_admin),
+    ],
+)
+async def upload_temp_media(
+    request: Request,
+    files: list[UploadFile] = File(...),
+    alt: str | None = Form(None),
+):
+    """
+    Upload images to Cloudinary without associating them to a product yet.
+    Returns Cloudinary URLs that can be used during product creation.
+    """
+    from apps.core.services.cloudinary_service import CloudinaryService
+    
+    uploaded_images = []
+    for file in files:
+        upload = CloudinaryService.upload_image(
+            file=file,
+            folder="products/temp"
+        )
+        uploaded_images.append({
+            "src": upload["secure_url"],
+            "cloudinary_id": upload["public_id"],
+            "alt": alt or "Product image",
+            "type": upload["format"],
+        })
+    
+    return {"images": uploaded_images}
+
+
+@router.post(
     "/{product_id}/media",
     status_code=status.HTTP_201_CREATED,
     response_model=schemas.CreateProductMediaOut,

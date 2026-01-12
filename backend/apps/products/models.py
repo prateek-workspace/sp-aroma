@@ -10,6 +10,10 @@ class Product(FastModel):
     id = Column(Integer, primary_key=True)
     product_name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
+    ingredients = Column(Text, nullable=True)
+    how_to_use = Column(Text, nullable=True)
+    category = Column(String(255), nullable=True)  # Our Best Sellers, Famous Fragrances, etc.
+    product_type = Column(String(50), nullable=True, default='perfume')  # perfume or attar
 
     # Active: The product is ready to sell and is available to customers on the online store, sales channels, and apps.
     # Archived: The product is no longer being sold and isn't available to customers on sales channels and apps.

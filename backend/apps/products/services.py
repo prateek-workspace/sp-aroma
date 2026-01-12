@@ -47,6 +47,8 @@ class ProductService:
         product_data = {
             'product_name': data.get('product_name'),
             'description': data.get('description'),
+            'ingredients': data.get('ingredients'),
+            'how_to_use': data.get('how_to_use'),
             'status': data.get('status', 'draft')
         }
         
@@ -298,6 +300,10 @@ class ProductService:
             'product_id': cls.product.id,
             'product_name': cls.product.product_name,
             'description': cls.product.description,
+            'ingredients': cls.product.ingredients,
+            'how_to_use': cls.product.how_to_use,
+            'category': cls.product.category,
+            'product_type': cls.product.product_type,
             'status': cls.product.status,
             'created_at': DateTime.string(cls.product.created_at),
             'updated_at': DateTime.string(cls.product.updated_at),
@@ -331,7 +337,7 @@ class ProductService:
         return cls.retrieve_variant(variant_id)
 
     @classmethod
-    def list_products(cls, limit: int = 12):
+    def list_products(cls, limit: int = 100):
         # - if "default variant" is not set, first variant will be
         # - on list of products, for price, get it from "default variant"
         # - if price or stock of default variant is 0 then select first variant that is not 0
@@ -346,10 +352,10 @@ class ProductService:
         with SessionLocal() as session:
             products = session.execute(
                 select(Product.id).limit(limit)
-            )
+            ).scalars().all()
 
-        for product in products:
-            products_list.append(cls.retrieve_product(product.id))
+        for product_id in products:
+            products_list.append(cls.retrieve_product(product_id))
 
         return products_list
 

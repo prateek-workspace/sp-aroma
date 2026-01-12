@@ -129,6 +129,10 @@ class ProductSchema(BaseModel):
     product_id: int
     product_name: Annotated[str, Query(max_length=255)]
     description: str | None
+    ingredients: str | None = None
+    how_to_use: str | None = None
+    category: str | None = None
+    product_type: str | None = None
     status: str | None
 
     created_at: str
@@ -150,6 +154,10 @@ class CreateProductOut(BaseModel):
 class CreateProductIn(BaseModel):
     product_name: Annotated[str, Query(max_length=255, min_length=1)]
     description: str | None = None
+    ingredients: str | None = None
+    how_to_use: str | None = None
+    category: str | None = None
+    product_type: str | None = None
     status: str | None = None
     price: float = 0
     stock: int = 0
@@ -213,6 +221,10 @@ class ListProductOut(BaseModel):
 class UpdateProductIn(BaseModel):
     product_name: Annotated[str, Query(max_length=255, min_length=1)] | None = None
     description: str | None = None
+    ingredients: str | None = None
+    how_to_use: str | None = None
+    category: str | None = None
+    product_type: str | None = None
     status: str | None = None
 
 
@@ -261,6 +273,10 @@ class CreateProductWithVariantsIn(BaseModel):
     """Comprehensive schema for multi-step product creation"""
     product_name: Annotated[str, Query(max_length=255, min_length=1)]
     description: str | None = None
+    ingredients: str | None = None
+    how_to_use: str | None = None
+    category: str | None = None
+    product_type: str | None = None
     status: str = "draft"  # draft, active, archived
     
     # Product-level options (Color, Size, Material, etc.)

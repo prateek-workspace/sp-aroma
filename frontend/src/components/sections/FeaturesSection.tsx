@@ -46,7 +46,7 @@ const FeaturesSection = () => {
           
           <div className="relative flex justify-center">
             <img 
-              src="https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://s3-alpha-sig.figma.com/img/68be/2df9/5a9a31fe4cbc5e09f456d23ee6c3815d?Expires=1763337600&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=alnQogT0I3F7n1BViPnxH8NLqZ1O2~ontocXGL~OckhhNty24l~ZMBACtmYU6g5YLsU9LLqgeGY7TAg4PC~84etQpf8~KlFRgLDtflIkQmdVRJnqIeh~37jCyX91bT0oOWF8XgKzZA8iaLCHM69Zn7XzZ2LohapQvJl33ugTqCGHBcFGmo9IB0cNSaNXo-oPs5AEyDqBqAYe1SdXJJHxiXtq7SK5C0BWqDv-B9oUd~Z6C5mmpilt~a4LTvqrGBFOt34i9JF9KMWgeuzBHcIooCz-ecmMCoboHP5b3sYI5GEl6A8brSwndrB3tA3WwUsvSUXEOrWtfd587JY9kxpnQA__"
+              src="https://res.cloudinary.com/dnyksrvqu/image/upload/v1768249370/products/temp/jorha93rrzwd2ef0o73o.png"
               alt="Woman applying traditional attar"
               className="max-w-full h-auto"
             />
