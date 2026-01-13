@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from apps.accounts.dependencies import require_superuser
 from apps.accounts.services.user import UserManager, User
 from pydantic import BaseModel
 from typing import List, Optional
+import base64
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -17,6 +18,13 @@ class UserUpdatePayload(BaseModel):
     last_name: Optional[str] = None
     is_active: Optional[bool] = None
     is_superuser: Optional[bool] = None
+
+
+class BulkEmailPayload(BaseModel):
+    subject: str
+    html_content: str
+    send_to_all: bool = True
+    recipient_email: Optional[str] = None
 
 
 @router.get("/users", response_model=UserListResponse)
@@ -115,3 +123,51 @@ def get_admin_analytics(admin: User = Depends(require_superuser)):
         "inactive_users": total_users - active_users,
         "unverified_users": total_users - verified_users,
     }
+
+
+@router.get("/emails/recipients")
+def get_email_recipients(admin: User = Depends(require_superuser)):
+    """Get all user emails for bulk email sending"""
+    users = UserManager.get_all_users(skip=0, limit=10000)
+    emails = [user.email for user in users if user.email and user.is_verified_email]
+    
+    return {
+        "emails": emails,
+        "total": len(emails)
+    }
+
+
+@router.post("/emails/send-bulk")
+async def send_bulk_email(
+    payload: BulkEmailPayload,
+    admin: User = Depends(require_superuser)
+):
+    """Send bulk email to all users or a single user"""
+    from apps.core.services.email_manager import EmailService
+    
+    if payload.send_to_all:
+        # Get all verified user emails
+        users = UserManager.get_all_users(skip=0, limit=10000)
+        recipients = [user.email for user in users if user.email and user.is_verified_email]
+        
+        if not recipients:
+            raise HTTPException(status_code=400, detail="No verified users found")
+    else:
+        if not payload.recipient_email:
+            raise HTTPException(status_code=400, detail="Recipient email is required when send_to_all is false")
+        recipients = [payload.recipient_email]
+    
+    try:
+        result = EmailService.send_bulk_custom_email(
+            subject=payload.subject,
+            html=payload.html_content,
+            recipients=recipients
+        )
+        
+        return {
+            "message": "Emails sent successfully",
+            "recipients_count": len(recipients),
+            **result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send emails: {str(e)}")

@@ -347,6 +347,17 @@ export const apiDeleteUser = (userId: number) =>
 export const apiGetAdminAnalytics = () =>
   getJson('/admin/analytics');
 
+export const apiGetEmailRecipients = () =>
+  getJson('/admin/emails/recipients');
+
+export const apiSendBulkEmail = (data: {
+  subject: string;
+  html_content: string;
+  send_to_all: boolean;
+  recipient_email?: string;
+}) => postJson('/admin/emails/send-bulk', data);
+
+
 // ===============================
 // PAYMENTS API
 // ===============================

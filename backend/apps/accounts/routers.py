@@ -114,7 +114,7 @@ async def verify_reset_password(payload: schemas.PasswordResetVerifyIn):
 
 @router.post(
     '/otp',
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=status.HTTP_200_OK,
     summary='Resend OTP',
     description="""Allows the user to request a new OTP (One-Time Password) for registration, password reset,
     or email change verification.
@@ -126,7 +126,7 @@ async def verify_reset_password(payload: schemas.PasswordResetVerifyIn):
 
     tags=['Authentication'])
 async def resend_otp(payload: schemas.OTPResendIn = Body(**schemas.OTPResendIn.examples())):
-    AccountService.resend_otp(**payload.model_dump())
+    return AccountService.resend_otp(**payload.model_dump())
 
 
 # ---------------------

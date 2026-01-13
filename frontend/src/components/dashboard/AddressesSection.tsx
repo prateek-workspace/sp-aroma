@@ -14,10 +14,13 @@ const AddressesSection = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [formData, setFormData] = useState<Partial<Address>>({
-    street: '',
+    full_name: '',
+    phone: '',
+    line1: '',
+    line2: '',
     city: '',
     state: '',
-    postal_code: '',
+    pincode: '',
     country: 'India',
     is_default: false,
   });
@@ -52,10 +55,13 @@ const AddressesSection = () => {
       setShowAddForm(false);
       setEditingId(null);
       setFormData({
-        street: '',
+        full_name: '',
+        phone: '',
+        line1: '',
+        line2: '',
         city: '',
         state: '',
-        postal_code: '',
+        pincode: '',
         country: 'India',
         is_default: false,
       });
@@ -68,12 +74,15 @@ const AddressesSection = () => {
   };
 
   const handleEdit = (addr: Address) => {
-    setEditingId(addr.address_id || null);
+    setEditingId(addr.id || addr.address_id || null);
     setFormData({
-      street: addr.street,
+      full_name: addr.full_name,
+      phone: addr.phone,
+      line1: addr.line1,
+      line2: addr.line2 || '',
       city: addr.city,
       state: addr.state,
-      postal_code: addr.postal_code,
+      pincode: addr.pincode,
       country: addr.country,
       is_default: addr.is_default,
     });
@@ -96,10 +105,13 @@ const AddressesSection = () => {
     setShowAddForm(false);
     setEditingId(null);
     setFormData({
-      street: '',
+      full_name: '',
+      phone: '',
+      line1: '',
+      line2: '',
       city: '',
       state: '',
-      postal_code: '',
+      pincode: '',
       country: 'India',
       is_default: false,
     });
@@ -146,17 +158,57 @@ const AddressesSection = () => {
               {editingId ? 'Edit Address' : 'Add New Address'}
             </h3>
             <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.full_name}
+                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded focus:border-heading focus:ring-1 focus:ring-heading text-sm sm:text-base"
+                    placeholder="John Doe"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Phone Number *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded focus:border-heading focus:ring-1 focus:ring-heading text-sm sm:text-base"
+                    placeholder="+91 98765 43210"
+                  />
+                </div>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  Street Address *
+                  Address Line 1 *
                 </label>
                 <input
                   type="text"
                   required
-                  value={formData.street}
-                  onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                  value={formData.line1}
+                  onChange={(e) => setFormData({ ...formData, line1: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-200 rounded focus:border-heading focus:ring-1 focus:ring-heading text-sm sm:text-base"
-                  placeholder="123 Main Street, Apt 4B"
+                  placeholder="123 Main Street"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Address Line 2
+                </label>
+                <input
+                  type="text"
+                  value={formData.line2 || ''}
+                  onChange={(e) => setFormData({ ...formData, line2: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded focus:border-heading focus:ring-1 focus:ring-heading text-sm sm:text-base"
+                  placeholder="Apt 4B, Building C"
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -186,13 +238,13 @@ const AddressesSection = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  Postal Code *
+                  Pincode *
                 </label>
                 <input
                   type="text"
                   required
-                  value={formData.postal_code}
-                  onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
+                  value={formData.pincode}
+                  onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-200 rounded focus:border-heading focus:ring-1 focus:ring-heading"
                   placeholder="400001"
                 />
@@ -255,7 +307,7 @@ const AddressesSection = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {paginatedAddresses.map((addr) => (
             <div
-              key={addr.address_id}
+              key={addr.id || addr.address_id}
               className="border border-gray-200 rounded-lg p-4 sm:p-5 hover:border-heading hover:shadow-md transition-all relative"
             >
               {addr.is_default && (
@@ -264,9 +316,14 @@ const AddressesSection = () => {
                 </span>
               )}
               <div className="mb-3 pr-16">
-                <div className="font-medium text-sm sm:text-base text-dark-text line-clamp-2">{addr.street}</div>
+                <div className="font-medium text-sm sm:text-base text-dark-text mb-1">{addr.full_name}</div>
+                <div className="text-xs sm:text-sm text-foreground">{addr.phone}</div>
+                <div className="font-medium text-sm sm:text-base text-dark-text mt-2 line-clamp-2">{addr.line1}</div>
+                {addr.line2 && (
+                  <div className="text-xs sm:text-sm text-foreground">{addr.line2}</div>
+                )}
                 <div className="text-xs sm:text-sm text-foreground mt-1">
-                  {addr.city}, {addr.state} {addr.postal_code}
+                  {addr.city}, {addr.state} {addr.pincode}
                 </div>
                 <div className="text-xs sm:text-sm text-foreground">{addr.country}</div>
               </div>
@@ -279,7 +336,7 @@ const AddressesSection = () => {
                   <span>Edit</span>
                 </button>
                 <button
-                  onClick={() => addr.address_id && handleDelete(addr.address_id)}
+                  onClick={() => (addr.id || addr.address_id) && handleDelete(addr.id || addr.address_id!)}
                   className="flex items-center gap-1 text-xs sm:text-sm text-red-600 hover:text-red-700 transition-colors"
                 >
                   <Trash2 size={14} />

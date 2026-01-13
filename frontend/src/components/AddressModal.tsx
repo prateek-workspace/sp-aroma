@@ -14,10 +14,13 @@ const AddressModal = ({ isOpen, onClose, onSelectAddress }: AddressModalProps) =
   const [loading, setLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newAddress, setNewAddress] = useState<Partial<Address>>({
-    street: '',
+    full_name: '',
+    phone: '',
+    line1: '',
+    line2: '',
     city: '',
     state: '',
-    postal_code: '',
+    pincode: '',
     country: 'India',
   });
 
@@ -45,10 +48,13 @@ const AddressModal = ({ isOpen, onClose, onSelectAddress }: AddressModalProps) =
       await apiCreateAddress(newAddress);
       setShowAddForm(false);
       setNewAddress({
-        street: '',
+        full_name: '',
+        phone: '',
+        line1: '',
+        line2: '',
         city: '',
         state: '',
-        postal_code: '',
+        pincode: '',
         country: 'India',
       });
       await loadAddresses();
@@ -111,11 +117,11 @@ const AddressModal = ({ isOpen, onClose, onSelectAddress }: AddressModalProps) =
                               <div className="text-sm text-gray-600 mt-1">{addr.phone}</div>
                             )}
                             <div className="text-sm text-gray-600 mt-1">
-                              {addr.line1 || addr.street}
-                              {(addr.line2) && `, ${addr.line2}`}
+                              {addr.line1}
+                              {addr.line2 && `, ${addr.line2}`}
                             </div>
                             <div className="text-sm text-gray-600">
-                              {addr.city}, {addr.state} - {addr.pincode || addr.postal_code}
+                              {addr.city}, {addr.state} - {addr.pincode}
                             </div>
                             <div className="text-sm text-gray-600">{addr.country}</div>
                           </div>
@@ -147,15 +153,52 @@ const AddressModal = ({ isOpen, onClose, onSelectAddress }: AddressModalProps) =
               ) : (
                 <form onSubmit={handleCreateAddress} className="space-y-4 border-t pt-6">
                   <h3 className="text-lg font-medium">Add New Address</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">
+                        Full Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newAddress.full_name}
+                        onChange={(e) => setNewAddress({ ...newAddress, full_name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded focus:border-heading focus:ring-1 focus:ring-heading"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">
+                        Phone Number *
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        value={newAddress.phone}
+                        onChange={(e) => setNewAddress({ ...newAddress, phone: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded focus:border-heading focus:ring-1 focus:ring-heading"
+                      />
+                    </div>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">
-                      Street Address *
+                      Address Line 1 *
                     </label>
                     <input
                       type="text"
                       required
-                      value={newAddress.street}
-                      onChange={(e) => setNewAddress({ ...newAddress, street: e.target.value })}
+                      value={newAddress.line1}
+                      onChange={(e) => setNewAddress({ ...newAddress, line1: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded focus:border-heading focus:ring-1 focus:ring-heading"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Address Line 2
+                    </label>
+                    <input
+                      type="text"
+                      value={newAddress.line2 || ''}
+                      onChange={(e) => setNewAddress({ ...newAddress, line2: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-200 rounded focus:border-heading focus:ring-1 focus:ring-heading"
                     />
                   </div>
@@ -188,14 +231,14 @@ const AddressModal = ({ isOpen, onClose, onSelectAddress }: AddressModalProps) =
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-1">
-                        Postal Code *
+                        Pincode *
                       </label>
                       <input
                         type="text"
                         required
-                        value={newAddress.postal_code}
+                        value={newAddress.pincode}
                         onChange={(e) =>
-                          setNewAddress({ ...newAddress, postal_code: e.target.value })
+                          setNewAddress({ ...newAddress, pincode: e.target.value })
                         }
                         className="w-full px-3 py-2 border border-gray-200 rounded focus:border-heading focus:ring-1 focus:ring-heading"
                       />

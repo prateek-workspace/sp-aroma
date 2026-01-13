@@ -122,3 +122,58 @@ class AccountService:
         token = TokenService(user)
         token.reset_access_token()
         return {"message": "Successfully logged out"}
+
+    # ------------------
+    # --- Resend OTP ---
+    # ------------------
+
+    @classmethod
+    def resend_otp(cls, email: str, request_type: str):
+        """
+        Resend OTP for registration, password reset, or email change.
+        
+        Args:
+            email: User's email address
+            request_type: One of 'register', 'reset-password', 'change-email'
+        """
+        user = UserManager.get_user(email=email)
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found with this email address."
+            )
+        
+        # Handle different request types
+        if request_type == "register":
+            if user.is_verified_email:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="This email is already verified."
+                )
+            TokenService(user.id).request_is_register()
+            EmailService.register_send_verification_email(user.email)
+            return {"message": "Verification email sent. Please check your inbox."}
+        
+        elif request_type == "reset-password":
+            TokenService(user.id).reset_is_reset_password()
+            EmailService.reset_password_send_verification_email(user.email)
+            return {"message": "Password reset email sent. Please check your inbox."}
+        
+        elif request_type == "change-email":
+            # For email change, user should already have a pending change request
+            token_service = TokenService(user.id)
+            new_email = token_service.get_new_email()
+            if not new_email:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="No pending email change request found."
+                )
+            EmailService.change_email_send_verification_email(user.email)
+            return {"message": "Email change verification sent. Please check your inbox."}
+        
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid request type."
+            )

@@ -1,9 +1,10 @@
 # apps/main.py
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from config.routers import RouterManager
+from config.database import SessionLocal
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("fastapi_app")
@@ -13,6 +14,16 @@ app = FastAPI(
     version="0.1.0",
     redirect_slashes=False,   # ⬅️ VERY IMPORTANT (prevents 307)
 )
+
+# ✅ Database session cleanup middleware
+@app.middleware("http")
+async def db_session_middleware(request: Request, call_next):
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        # Clean up scoped session after each request to prevent stale connections
+        SessionLocal.remove()
 
 # ✅ CORS FIX
 app.add_middleware(

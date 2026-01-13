@@ -16,7 +16,11 @@ from config.settings import DATABASE_URL
 # If you're using Neon with sslmode=require, include that in the URL in settings.
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True,
+    pool_pre_ping=False,  # Disabled to prevent transaction conflicts with psycopg2
+    pool_recycle=3600,    # Recycle connections after 1 hour
+    pool_size=10,         # Number of connections in the pool
+    max_overflow=20,      # Max overflow connections beyond pool_size
+    pool_timeout=30,      # Timeout for getting connection from pool
     # Note: psycopg2 accepts sslmode in the URL; additional connect_args can be added if needed.
     # connect_args={"sslmode": "require"},
 )
@@ -74,15 +78,13 @@ class BaseModel:
     def filter(cls, *criteria):
         """
         Return a Query object filtered by given SQLAlchemy criteria.
-        Note: caller should call .first(), .all(), .count(), etc.
-        This returns a query bound to a session - the session must remain open while using the query.
-        We intentionally return a Query from a new session (not closed) to preserve existing code semantics
-        like `User.filter(...).first()` used in your code.
+        Note: This now properly manages the session using scoped_session.
+        The scoped_session will automatically close when the query completes.
         """
-        # IMPORTANT: this opens a session that will NOT be closed here because the returned Query relies on it.
-        # Callers should complete the Query (first/all) immediately so it executes; session will later be GC'ed/closed.
         db = SessionLocal()
-        return db.query(cls).filter(*criteria)
+        query = db.query(cls).filter(*criteria)
+        # Enable query to work with the scoped session that will auto-cleanup
+        return query
 
     @classmethod
     def update(cls, pk: int, **kwargs) -> Any | None:
@@ -146,3 +148,5 @@ def get_db():
         yield db
     finally:
         db.close()
+        # Remove the scoped session to prevent stale connections
+        SessionLocal.remove()

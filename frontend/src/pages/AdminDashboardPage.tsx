@@ -7,12 +7,13 @@ import UserManagement from '../components/dashboard/UserManagement';
 import OrderManagement from '../components/dashboard/OrderManagement';
 import ProductManagement from '../components/dashboard/ProductManagement';
 import TransactionManagement from '../components/dashboard/TransactionManagement';
-import { BarChart3, Users, ShoppingCart, Package, CreditCard, LogOut, Home } from 'lucide-react';
+import BulkEmailSender from '../components/dashboard/BulkEmailSender';
+import { BarChart3, Users, ShoppingCart, Package, CreditCard, LogOut, Home, Mail } from 'lucide-react';
 
 const AdminDashboardPage = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'orders' | 'products' | 'transactions'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'orders' | 'products' | 'transactions' | 'emails'>('analytics');
 
   const handleLogout = () => {
     logout();
@@ -42,6 +43,7 @@ const AdminDashboardPage = () => {
     { id: 'orders' as const, label: 'Orders', icon: ShoppingCart },
     { id: 'transactions' as const, label: 'Transactions', icon: CreditCard },
     { id: 'users' as const, label: 'Users', icon: Users },
+    { id: 'emails' as const, label: 'Send Email', icon: Mail },
   ];
 
   return (
@@ -115,6 +117,7 @@ const AdminDashboardPage = () => {
           {activeTab === 'orders' && <OrderManagement />}
           {activeTab === 'transactions' && <TransactionManagement />}
           {activeTab === 'users' && <UserManagement />}
+          {activeTab === 'emails' && <BulkEmailSender />}
         </motion.div>
       </main>
     </div>

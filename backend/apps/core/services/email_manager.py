@@ -1,4 +1,6 @@
 import resend
+import base64
+from typing import List, Optional
 from apps.accounts.services.token import TokenService
 from config.settings import AppConfig
 
@@ -12,17 +14,23 @@ class EmailService:
     resend.api_key = app.resend_api_key
 
     @classmethod
-    def send(cls, subject: str, html: str, to: str):
+    def send(cls, subject: str, html: str, to: str, attachments: Optional[List[dict]] = None):
         """
         Generic email sender via Resend.
+        attachments: List of dicts with 'filename' and 'content' (base64 encoded)
         """
         try:
-            resend.Emails.send({
+            email_data = {
                 "from": f"{cls.app.project_name} <{cls.app.resend_from_email}>",
                 "to": [to],
                 "subject": subject,
                 "html": html
-            })
+            }
+            
+            if attachments:
+                email_data["attachments"] = attachments
+            
+            resend.Emails.send(email_data)
         except Exception as e:
             print("❌ Error sending email:", e)
             raise
@@ -139,3 +147,24 @@ class EmailService:
         """
         cls.send(subject, html, to_address)
 
+    @classmethod
+    def send_bulk_custom_email(cls, subject: str, html: str, recipients: List[str], attachments: Optional[List[dict]] = None):
+        """
+        Send custom email to multiple recipients
+        """
+        failed_emails = []
+        success_count = 0
+        
+        for email in recipients:
+            try:
+                cls.send(subject, html, email, attachments)
+                success_count += 1
+            except Exception as e:
+                print(f"Failed to send to {email}: {e}")
+                failed_emails.append(email)
+        
+        return {
+            "success_count": success_count,
+            "failed_count": len(failed_emails),
+            "failed_emails": failed_emails
+        }
