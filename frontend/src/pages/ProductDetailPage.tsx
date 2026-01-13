@@ -7,35 +7,64 @@ import ProductCard from '../components/ProductCard';
 import { useCart } from '../contexts/CartContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
+interface ProductVariant {
+  variant_id: number;
+  price: number;
+  stock: number;
+  option1?: number;
+  option2?: number;
+  option3?: number;
+  option1_name?: string;
+  option2_name?: string;
+  option3_name?: string;
+  images?: string[];
+}
+
 const ProductDetailPage = () => {
   const { productId } = useParams();
   const [quantity, setQuantity] = useState(1);
   const [openAccordion, setOpenAccordion] = useState<string | null>('description');
   const [isAdded, setIsAdded] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const { addToCart } = useCart();
 
   const [product, setProduct] = useState<any | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentImages, setCurrentImages] = useState<string[]>([]);
 
   useEffect(() => {
     let mounted = true;
     const load = async () => {
       if (!productId) return;
       setLoading(true);
-      setSelectedImageIndex(0); // Reset to first image when product changes
+      setSelectedImageIndex(0);
       try {
         const res = await apiGetProduct(productId);
         const p = res?.product;
-        const mapped = p ? {
+        
+        if (!p) {
+          if (mounted) setProduct(null);
+          return;
+        }
+
+        // Organize media by variant
+        const productImages = (p.media || []).filter((m: any) => !m.variant_id).map((m: any) => m.src);
+        const variantsWithImages = (p.variants || []).map((v: any) => ({
+          ...v,
+          images: (p.media || [])
+            .filter((m: any) => m.variant_id === v.variant_id)
+            .map((m: any) => m.src)
+        }));
+
+        const mapped = {
           id: p.product_id,
           name: p.product_name,
           type: p.product_type === 'attar' ? 'Attar' : 'Perfume',
-          price: p.price ? `₹${p.price}` : (p.variants && p.variants[0] ? `₹${p.variants[0].price}` : '₹0'),
+          price: p.price || (variantsWithImages[0] ? variantsWithImages[0].price : 0),
           originalPrice: undefined,
-          imageUrl: (p.media && p.media[0] && p.media[0].src) || '/placeholder.png',
-          images: (p.media && p.media.length > 0) ? p.media.map((m: any) => m.src) : ['/placeholder.png'],
+          productImages: productImages.length > 0 ? productImages : ['/placeholder.png'],
           categories: [],
           category: p.category,
           product_type: p.product_type,
@@ -43,9 +72,21 @@ const ProductDetailPage = () => {
           longDescription: p.description || '',
           ingredients: p.ingredients || '',
           howToUse: p.how_to_use || '',
-          variantId: p.variants && p.variants[0] ? p.variants[0].variant_id : p.product_id,
-        } : null;
-        if (mounted) setProduct(mapped);
+          variants: variantsWithImages,
+          options: p.options || [],
+        };
+
+        if (mounted) {
+          setProduct(mapped);
+          // Set initial variant and images
+          if (variantsWithImages.length > 0) {
+            const firstVariant = variantsWithImages[0];
+            setSelectedVariant(firstVariant);
+            setCurrentImages(firstVariant.images.length > 0 ? firstVariant.images : mapped.productImages);
+          } else {
+            setCurrentImages(mapped.productImages);
+          }
+        }
 
         // Load all products for related list
         const allRes = await apiGetProducts();
@@ -75,9 +116,31 @@ const ProductDetailPage = () => {
     return () => { mounted = false };
   }, [productId]);
 
+  // Update images when variant changes
+  useEffect(() => {
+    if (selectedVariant && product) {
+      if (selectedVariant.images && selectedVariant.images.length > 0) {
+        setCurrentImages(selectedVariant.images);
+      } else {
+        setCurrentImages(product.productImages);
+      }
+      setSelectedImageIndex(0);
+    }
+  }, [selectedVariant, product]);
+
+  const handleVariantSelect = (variant: ProductVariant) => {
+    setSelectedVariant(variant);
+    setQuantity(1);
+  };
+
   const handleAddToCart = async () => {
-    if (product) {
-      await addToCart(product, quantity);
+    if (product && selectedVariant) {
+      const cartProduct = {
+        ...product,
+        price: `₹${selectedVariant.price}`,
+        variantId: selectedVariant.variant_id,
+      };
+      await addToCart(cartProduct, quantity);
       setIsAdded(true);
     }
   };
@@ -158,11 +221,11 @@ const ProductDetailPage = () => {
             {/* Main Image with Badge */}
             <div className="relative bg-primary-bg rounded-2xl overflow-hidden aspect-square mb-4 group">
               <motion.img 
-                key={selectedImageIndex}
-                initial={{ opacity: 0, scale: 1.1 }}
+                key={`${selectedVariant?.variant_id}-${selectedImageIndex}`}
+                initial={{ opacity: 0, scale: 1.05 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.4 }}
-                src={product.images[selectedImageIndex]} 
+                src={currentImages[selectedImageIndex]} 
                 alt={`${product.name} - Image ${selectedImageIndex + 1}`} 
                 className="w-full h-full object-cover" 
               />
@@ -174,14 +237,21 @@ const ProductDetailPage = () => {
                   <span className="text-xs font-jost uppercase tracking-widest text-white">{product.category}</span>
                 </div>
               )}
+              {selectedVariant && product.variants.length > 1 && (
+                <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg">
+                  <span className="text-xs font-jost uppercase tracking-widest text-heading">
+                    {selectedVariant.option1_name || 'Variant'}
+                  </span>
+                </div>
+              )}
             </div>
             
             {/* Thumbnail Gallery */}
-            {product.images.length > 1 && (
-              <div className="flex gap-3 overflow-x-auto pb-2 px-1">
-                {product.images.map((img: string, index: number) => (
+            {currentImages.length > 1 && (
+              <div className="flex gap-3 overflow-x-auto pb-2 px-1 scrollbar-thin scrollbar-thumb-heading scrollbar-track-gray-100">
+                {currentImages.map((img: string, index: number) => (
                   <motion.button
-                    key={index}
+                    key={`thumb-${selectedVariant?.variant_id}-${index}`}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setSelectedImageIndex(index)}
@@ -201,6 +271,15 @@ const ProductDetailPage = () => {
                 ))}
               </div>
             )}
+
+            {/* Variant Image Count Badge */}
+            {selectedVariant && selectedVariant.images && selectedVariant.images.length > 0 && (
+              <div className="mt-3 text-center">
+                <span className="inline-block px-3 py-1 bg-primary-bg rounded-full text-xs text-foreground">
+                  {selectedVariant.images.length} {selectedVariant.images.length === 1 ? 'image' : 'images'} for this variant
+                </span>
+              </div>
+            )}
           </motion.div>
 
           {/* Product Details Column */}
@@ -213,17 +292,80 @@ const ProductDetailPage = () => {
             <div className="mb-6">
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-light tracking-widest mb-4">{product.name}</h1>
               <div className="flex items-baseline gap-3">
-                <span className="text-4xl font-sans text-heading font-medium">{product.price}</span>
+                <span className="text-4xl font-sans text-heading font-medium">
+                  ₹{selectedVariant?.price || product.price}
+                </span>
                 {product.originalPrice && (
                   <span className="text-2xl text-gray-400 line-through">{product.originalPrice}</span>
                 )}
               </div>
+              {selectedVariant && selectedVariant.stock !== undefined && (
+                <p className="mt-2 text-sm text-foreground">
+                  {selectedVariant.stock > 0 ? (
+                    <span className="text-green-600">In Stock ({selectedVariant.stock} available)</span>
+                  ) : (
+                    <span className="text-red-600">Out of Stock</span>
+                  )}
+                </p>
+              )}
             </div>
 
             {/* Short Description */}
             <p className="text-lg text-foreground leading-relaxed mb-8 pb-8 border-b border-gray-200">
               {product.shortDescription}
             </p>
+
+            {/* Variant Selector */}
+            {product.variants && product.variants.length > 1 && (
+              <div className="mb-8 pb-8 border-b border-gray-200">
+                <label className="block text-sm font-jost uppercase tracking-widest text-foreground mb-4">
+                  Select Variant
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {product.variants.map((variant: ProductVariant) => (
+                    <motion.button
+                      key={variant.variant_id}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => handleVariantSelect(variant)}
+                      disabled={variant.stock === 0}
+                      className={cn(
+                        "relative p-4 rounded-xl border-2 transition-all text-left",
+                        selectedVariant?.variant_id === variant.variant_id
+                          ? "border-heading bg-primary-bg shadow-md"
+                          : "border-gray-200 hover:border-heading/50",
+                        variant.stock === 0 && "opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm font-medium text-heading">
+                          {variant.option1_name || `Variant ${variant.variant_id}`}
+                        </span>
+                        <span className="text-xs text-foreground">₹{variant.price}</span>
+                        {variant.images && variant.images.length > 0 && (
+                          <span className="text-xs text-gray-400 mt-1">
+                            {variant.images.length} {variant.images.length === 1 ? 'photo' : 'photos'}
+                          </span>
+                        )}
+                      </div>
+                      {selectedVariant?.variant_id === variant.variant_id && (
+                        <motion.div
+                          layoutId="selected-variant"
+                          className="absolute -top-1 -right-1 w-6 h-6 bg-heading rounded-full flex items-center justify-center"
+                        >
+                          <Check size={14} className="text-white" />
+                        </motion.div>
+                      )}
+                      {variant.stock === 0 && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-xl">
+                          <span className="text-xs font-medium text-red-600">Out of Stock</span>
+                        </div>
+                      )}
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Quantity & Add to Cart */}
             <div className="space-y-6 mb-8">
@@ -260,14 +402,18 @@ const ProductDetailPage = () => {
                     "flex-1 flex items-center justify-center gap-2 font-sans uppercase tracking-wider px-8 py-4 rounded-full transition-all duration-300 shadow-lg",
                     isAdded 
                       ? "bg-green-500 text-white" 
-                      : "bg-heading text-white hover:bg-opacity-90 hover:shadow-xl"
+                      : selectedVariant && selectedVariant.stock > 0
+                      ? "bg-heading text-white hover:bg-opacity-90 hover:shadow-xl"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
                   )}
-                  disabled={isAdded}
+                  disabled={isAdded || !selectedVariant || selectedVariant.stock === 0}
                 >
                   {isAdded ? (
                     <>
                       <Check size={20} /> Added to Cart!
                     </>
+                  ) : selectedVariant && selectedVariant.stock === 0 ? (
+                    <>Out of Stock</>
                   ) : (
                     <>
                       <ShoppingBag size={20} /> Add to Cart
