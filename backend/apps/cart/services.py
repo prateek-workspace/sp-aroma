@@ -69,6 +69,16 @@ class CartService:
             "currency": "INR",
         }
 
+    @staticmethod
+    def _load_cart_with_relations(session: Session, cart_id: int):
+        """Re-load cart with all relationships eagerly loaded for serialization."""
+        return session.query(Cart).options(
+            joinedload(Cart.items)
+                .joinedload(CartItem.product)
+                .joinedload(Product.media),
+            joinedload(Cart.items).joinedload(CartItem.variant)
+        ).filter(Cart.id == cart_id).first()
+
     # ------------------------
     # APIs
     # ------------------------
@@ -112,8 +122,9 @@ class CartService:
                 ))
 
             session.commit()
-            session.refresh(cart)
 
+            # Re-load cart with eager loading for product media
+            cart = cls._load_cart_with_relations(session, cart.id)
             return cls._serialize_cart(cart)
         finally:
             session.close()
@@ -148,10 +159,12 @@ class CartService:
                 raise HTTPException(404, "Item not found")
 
             item.quantity = quantity
+            cart_id = item.cart.id
             session.commit()
-            session.refresh(item.cart)
 
-            return cls._serialize_cart(item.cart)
+            # Re-load cart with eager loading for product media
+            cart = cls._load_cart_with_relations(session, cart_id)
+            return cls._serialize_cart(cart)
         finally:
             session.close()
 
@@ -163,12 +176,12 @@ class CartService:
             if not item or item.cart.user_id != user_id:
                 raise HTTPException(404, "Item not found")
 
-            cart = item.cart
-            cart_id = cart.id
+            cart_id = item.cart.id
             session.delete(item)
             session.commit()
-            session.refresh(cart)
 
+            # Re-load cart with eager loading for product media
+            cart = cls._load_cart_with_relations(session, cart_id)
             return cls._serialize_cart(cart)
         finally:
             session.close()
@@ -177,8 +190,8 @@ class CartService:
     def checkout(cls, user_id: int, address_id: int):
         """
         Creates the order and:
-        - If PAYMENT_MODE=razorpay → returns razorpay_order_id for frontend to open Razorpay popup
-        - If PAYMENT_MODE=mock → completes order immediately
+        - If PAYMENT_MODE=razorpay → order created with PENDING status, frontend opens Razorpay
+        - If PAYMENT_MODE=mock → completes order immediately with mock payment
         """
         session: Session = SessionLocal()
         try:
@@ -190,23 +203,35 @@ class CartService:
             if not cart or not cart.items:
                 raise HTTPException(status_code=400, detail="Cart is empty")
 
+            config = AppConfig.get_config()
+            is_razorpay = config.PAYMENT_MODE == "razorpay"
+
             order = OrderService.create_from_cart(
                 session=session,
                 user_id=user_id,
                 address_id=address_id,
                 cart=cart,
-                mock_payment=True,
+                mock_payment=not is_razorpay,
             )
 
             # Clear cart
             session.query(CartItem).filter_by(cart_id=cart.id).delete()
             session.commit()
 
-            return {
-                "order_id": order.id,
-                "status": order.status,
-                "payment": "mock_success",
-            }
+            if is_razorpay:
+                return {
+                    "order_id": order.id,
+                    "total_amount": float(order.total_amount),
+                    "status": order.status,
+                    "payment_mode": "razorpay",
+                }
+            else:
+                return {
+                    "order_id": order.id,
+                    "status": order.status,
+                    "payment": "mock_success",
+                    "payment_mode": "mock",
+                }
 
         except Exception:
             session.rollback()

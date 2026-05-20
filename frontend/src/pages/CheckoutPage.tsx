@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { useToast } from '../contexts/ToastContext';
-import { apiCheckout, apiGetAddress, apiCreatePayment, apiVerifyPayment } from '../lib/api';
+import { apiCheckout, apiGetAddress, apiCreatePayment, apiVerifyPayment, apiGetPaymentConfig } from '../lib/api';
 import { Lock, CheckCircle, Package} from 'lucide-react';
 
 // Load Razorpay script dynamically
@@ -24,7 +24,7 @@ const CheckoutPage = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { cartItems, cartTotal, cartCount, clearCart } = useCart();
-  const { error: showError } = useToast();
+  const { error: showError, success: showSuccess } = useToast();
 
   const [addressId, setAddressId] = useState<number | null>(null);
   const [address, setAddress] = useState<any>(null);
@@ -47,6 +47,7 @@ const CheckoutPage = () => {
     }
     setAddressId(selectedAddressId);
     loadAddress(selectedAddressId);
+    loadPaymentConfig();
     loadRazorpayScript(); // preload
   }, []);
 

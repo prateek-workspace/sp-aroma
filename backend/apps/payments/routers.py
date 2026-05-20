@@ -2,12 +2,23 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 from config.database import get_db, SessionLocal
+from config.settings import AppConfig
 from apps.orders.models import Order
 from apps.payments.models import Payment
 from apps.payments.services.razorpay import RazorpayGateway
 from apps.accounts.dependencies import get_current_user, require_superuser
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
+
+
+@router.get("/config")
+def get_payment_config(user=Depends(get_current_user)):
+    """Return payment configuration for frontend (mode + public key)."""
+    config = AppConfig.get_config()
+    result = {"payment_mode": config.PAYMENT_MODE}
+    if config.PAYMENT_MODE == "razorpay" and config.RAZORPAY_KEY_ID:
+        result["razorpay_key_id"] = config.RAZORPAY_KEY_ID
+    return result
 
 
 class VerifyPaymentIn(BaseModel):
@@ -78,12 +89,13 @@ def verify_payment(payload: VerifyPaymentIn, user=Depends(get_current_user)):
 
         if payment:
             payment.razorpay_payment_id = payload.razorpay_payment_id
+            payment.razorpay_signature = payload.razorpay_signature
             payment.status = "completed"
 
         order.status = "CONFIRMED"
         session.commit()
 
-        return {"success": True, "order_id": order.id, "status": "CONFIRMED"}
+        return {"success": True, "verified": True, "order_id": order.id, "status": "CONFIRMED"}
 
 
 @router.get("/admin/all")
