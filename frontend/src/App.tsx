@@ -1,4 +1,5 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import HomePage from './pages/HomePage';
@@ -12,9 +13,18 @@ import AdminDashboardPage from './pages/AdminDashboardPage';
 import UserDashboardPage from './pages/UserDashboardPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+};
+
 function App() {
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground overflow-x-hidden">
+      <ScrollToTop />
       <Header />
       <Routes>
         <Route path="/" element={<HomePage />} />

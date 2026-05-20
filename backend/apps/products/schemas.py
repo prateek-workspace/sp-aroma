@@ -18,6 +18,10 @@ class VariantSchema(BaseModel):
     option1: int | None
     option2: int | None
     option3: int | None
+    option1_name: str | None = None
+    option2_name: str | None = None
+    option3_name: str | None = None
+    title: str | None = None
     created_at: str
     updated_at: str | None
 
@@ -185,11 +189,9 @@ class CreateProductIn(BaseModel):
         option_name_set = set()
         items_set = set()
 
-        # each product should have just max 3 options.
         if len(options) > 3:
             raise ValueError('The number of options cannot exceed 3.')
 
-        # checking `options-name` and `option-items list` are uniq
         for option in options:
             if isinstance(option, dict):
                 option_name = option.get("option_name")
@@ -240,7 +242,6 @@ class UpdateProductOut(BaseModel):
 
 
 class VariantMediaIn(BaseModel):
-    """Schema for variant-specific images"""
     src: str
     cloudinary_id: str
     alt: str | None = None
@@ -248,12 +249,11 @@ class VariantMediaIn(BaseModel):
 
 
 class VariantIn(BaseModel):
-    """Schema for creating a variant with options and images"""
     price: float
     stock: int
-    option1: str | None = None  # e.g., "Red"
-    option2: str | None = None  # e.g., "Large"
-    option3: str | None = None  # e.g., "Cotton"
+    option1: str | None = None
+    option2: str | None = None
+    option3: str | None = None
     images: list[VariantMediaIn] | None = None
 
     @field_validator('price')
@@ -270,22 +270,16 @@ class VariantIn(BaseModel):
 
 
 class CreateProductWithVariantsIn(BaseModel):
-    """Comprehensive schema for multi-step product creation"""
     product_name: Annotated[str, Query(max_length=255, min_length=1)]
     description: str | None = None
     ingredients: str | None = None
     how_to_use: str | None = None
     category: str | None = None
     product_type: str | None = None
-    status: str = "draft"  # draft, active, archived
-    
-    # Product-level options (Color, Size, Material, etc.)
+    status: str = "draft"
+
     options: list[OptionIn] | None = None
-    
-    # Variants with their specific values, price, stock, and images
     variants: list[VariantIn] | None = None
-    
-    # Product-level images (not variant-specific)
     product_images: list[VariantMediaIn] | None = None
 
     class Config:
@@ -295,18 +289,16 @@ class CreateProductWithVariantsIn(BaseModel):
     def validate_variants_match_options(cls, values):
         options = values.get("options", [])
         variants = values.get("variants", [])
-        
+
         if not options and not variants:
-            # Simple product without variants is OK
             return values
-        
+
         if options and len(options) > 3:
             raise ValueError('The number of options cannot exceed 3.')
-        
-        # Check for duplicate option names
+
         if options:
             option_names = [opt.get("option_name") if isinstance(opt, dict) else opt.option_name for opt in options]
             if len(option_names) != len(set(option_names)):
                 raise ValueError('Duplicate option names found.')
-        
+
         return values
