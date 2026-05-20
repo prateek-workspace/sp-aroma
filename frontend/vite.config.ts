@@ -22,11 +22,6 @@ export default defineConfig(({ mode }: { mode: string }) => {
           changeOrigin: true,
           secure: true,
         },
-        '/auth': {
-          target: API_BASE,
-          changeOrigin: true,
-          secure: true,
-        },
         '/products': {
           target: API_BASE,
           changeOrigin: true,
@@ -57,12 +52,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
           changeOrigin: true,
           secure: true,
         },
-        '/admin/users': {
-          target: API_BASE,
-          changeOrigin: true,
-          secure: true,
-        },
-        '/admin/analytics': {
+        '/admin': {
           target: API_BASE,
           changeOrigin: true,
           secure: true,

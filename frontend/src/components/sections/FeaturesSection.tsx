@@ -46,7 +46,7 @@ const FeaturesSection = () => {
           
           <div className="relative flex justify-center">
             <img 
-              src="https://res.cloudinary.com/dnyksrvqu/image/upload/v1768249370/products/temp/jorha93rrzwd2ef0o73o.png"
+              src="https://res.cloudinary.com/da4ga189w/image/upload/v1768248452/products/temp/w696knqsgxvg4guimct8.png"
               alt="Woman applying traditional attar"
               className="max-w-full h-auto"
             />

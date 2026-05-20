@@ -10,8 +10,10 @@ class Payment(FastModel):
     order_id = Column(Integer, ForeignKey("orders.id"))
     razorpay_order_id = Column(String, nullable=False)
     razorpay_payment_id = Column(String, nullable=True)
+    razorpay_signature = Column(String, nullable=True)
 
     amount = Column(Numeric(10, 2))
+    currency = Column(String, default="INR")
     status = Column(String, default="created")
 
     created_at = Column(DateTime, server_default=func.now())

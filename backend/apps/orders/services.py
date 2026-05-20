@@ -19,6 +19,7 @@ VALID_ORDER_STATUSES = [
     "DELIVERED",
     "CANCELLED",
     "CANCEL_REQUESTED",
+    "PAYMENT_FAILED",
     # Legacy statuses for backward compatibility
     "SUCCESS",
     "PENDING",
@@ -32,15 +33,89 @@ class OrderService:
 
     @staticmethod
     def get_user_orders(user_id: int):
+        from sqlalchemy.orm import joinedload
         with SessionLocal() as session:
+            # Eager load items and payments in a single query to prevent N+1
             orders = (
                 session.query(Order)
+                .options(
+                    joinedload(Order.items),
+                    joinedload(Order.payments),
+                )
                 .filter(Order.user_id == user_id)
                 .order_by(Order.created_at.desc())
                 .all()
             )
 
-            serialized_orders = [OrderService._serialize_in_session(session, order) for order in orders]
+            # Pre-fetch user once (all orders belong to the same user)
+            from apps.accounts.models import User
+            user = session.query(User).filter(User.id == user_id).first()
+
+            # Pre-fetch all products & variants needed across all orders in batch
+            from apps.products.models import Product, ProductVariant
+            product_ids = set()
+            variant_ids = set()
+            for order in orders:
+                for item in order.items:
+                    product_ids.add(item.product_id)
+                    if item.variant_id:
+                        variant_ids.add(item.variant_id)
+
+            products_map = {}
+            if product_ids:
+                products = session.query(Product).filter(Product.id.in_(product_ids)).all()
+                products_map = {p.id: p for p in products}
+
+            variants_map = {}
+            if variant_ids:
+                variants = session.query(ProductVariant).filter(ProductVariant.id.in_(variant_ids)).all()
+                variants_map = {v.id: v for v in variants}
+
+            # Serialize efficiently
+            user_info = {
+                "user_id": user.id,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+            } if user else None
+
+            serialized_orders = []
+            for order in orders:
+                payment_info = None
+                if order.payments:
+                    payment = order.payments[0]
+                    payment_info = {
+                        "payment_id": payment.id,
+                        "amount": float(payment.amount),
+                        "status": payment.status,
+                        "razorpay_order_id": payment.razorpay_order_id,
+                        "razorpay_payment_id": payment.razorpay_payment_id,
+                        "created_at": payment.created_at,
+                    }
+
+                items_list = []
+                for item in order.items:
+                    product = products_map.get(item.product_id)
+                    items_list.append({
+                        "product_id": item.product_id,
+                        "product_name": product.product_name if product else "Unknown Product",
+                        "variant_id": item.variant_id,
+                        "quantity": item.quantity,
+                        "price": float(item.price),
+                        "subtotal": float(item.price * item.quantity),
+                    })
+
+                serialized_orders.append({
+                    "order_id": order.id,
+                    "id": order.id,
+                    "total_amount": float(order.total_amount),
+                    "status": order.status,
+                    "created_at": order.created_at,
+                    "user": user_info,
+                    "payment": payment_info,
+                    "items": items_list,
+                })
+
             return {"orders": serialized_orders}
 
     @staticmethod
@@ -67,15 +142,88 @@ class OrderService:
     @staticmethod
     def get_all_success_orders():
         """Get all orders for admin (not just SUCCESS status anymore)"""
+        from sqlalchemy.orm import joinedload
         with SessionLocal() as session:
+            # Eager load items and payments in a single query
             orders = (
                 session.query(Order)
+                .options(
+                    joinedload(Order.items),
+                    joinedload(Order.payments),
+                )
                 .order_by(Order.created_at.desc())
                 .all()
             )
 
-            # Serialize orders while still in session context
-            serialized_orders = [OrderService._serialize_in_session(session, order) for order in orders]
+            # Pre-fetch all users, products, variants in batch
+            from apps.accounts.models import User
+            from apps.products.models import Product, ProductVariant
+
+            user_ids = set(o.user_id for o in orders)
+            product_ids = set()
+            variant_ids = set()
+            for order in orders:
+                for item in order.items:
+                    product_ids.add(item.product_id)
+                    if item.variant_id:
+                        variant_ids.add(item.variant_id)
+
+            users_map = {}
+            if user_ids:
+                users = session.query(User).filter(User.id.in_(user_ids)).all()
+                users_map = {u.id: u for u in users}
+
+            products_map = {}
+            if product_ids:
+                products = session.query(Product).filter(Product.id.in_(product_ids)).all()
+                products_map = {p.id: p for p in products}
+
+            # Serialize all orders efficiently
+            serialized_orders = []
+            for order in orders:
+                user = users_map.get(order.user_id)
+                user_info = {
+                    "user_id": user.id,
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                } if user else None
+
+                payment_info = None
+                if order.payments:
+                    payment = order.payments[0]
+                    payment_info = {
+                        "payment_id": payment.id,
+                        "amount": float(payment.amount),
+                        "status": payment.status,
+                        "razorpay_order_id": payment.razorpay_order_id,
+                        "razorpay_payment_id": payment.razorpay_payment_id,
+                        "created_at": payment.created_at,
+                    }
+
+                items_list = []
+                for item in order.items:
+                    product = products_map.get(item.product_id)
+                    items_list.append({
+                        "product_id": item.product_id,
+                        "product_name": product.product_name if product else "Unknown Product",
+                        "variant_id": item.variant_id,
+                        "quantity": item.quantity,
+                        "price": float(item.price),
+                        "subtotal": float(item.price * item.quantity),
+                    })
+
+                serialized_orders.append({
+                    "order_id": order.id,
+                    "id": order.id,
+                    "total_amount": float(order.total_amount),
+                    "status": order.status,
+                    "created_at": order.created_at,
+                    "user": user_info,
+                    "payment": payment_info,
+                    "items": items_list,
+                })
+
             return {"orders": serialized_orders}
 
     @staticmethod

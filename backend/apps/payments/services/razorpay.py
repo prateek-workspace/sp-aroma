@@ -1,6 +1,7 @@
 import hmac
 import hashlib
 import razorpay
+from .base import PaymentGateway
 from config.settings import AppConfig
 
 

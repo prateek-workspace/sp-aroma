@@ -587,8 +587,17 @@ export const apiSendBulkEmail = (data: {
 // ===============================
 // PAYMENTS API
 // ===============================
+export const apiGetPaymentConfig = () =>
+  getJson('/payments/config');
+
 export const apiCreatePayment = (orderId: number) =>
   postJson(`/payments/create/${orderId}`, {});
+
+export const apiVerifyPayment = (data: {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}) => postJson('/payments/verify', data);
 
 export const apiGetAllPayments = (skip: number = 0, limit: number = 100) =>
   getJson(`/payments/admin/all?skip=${skip}&limit=${limit}`);

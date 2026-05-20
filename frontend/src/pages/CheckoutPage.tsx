@@ -31,6 +31,8 @@ const CheckoutPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [orderId, setOrderId] = useState<number | null>(null);
+  const [paymentMode, setPaymentMode] = useState<string>('mock');
+  const [razorpayKeyId, setRazorpayKeyId] = useState<string>('');
 
   useEffect(() => {
     const selectedAddressId = location.state?.addressId;
@@ -56,6 +58,94 @@ const CheckoutPage = () => {
       showError('Failed to load delivery address');
       navigate('/cart');
     }
+  };
+
+  const loadPaymentConfig = async () => {
+    try {
+      const config = await apiGetPaymentConfig();
+      setPaymentMode(config.payment_mode || 'mock');
+      if (config.razorpay_key_id) {
+        setRazorpayKeyId(config.razorpay_key_id);
+      }
+    } catch (err) {
+      console.error('Failed to load payment config', err);
+      // Fall back to mock mode
+      setPaymentMode('mock');
+    }
+  };
+
+  const openRazorpayCheckout = (paymentData: any) => {
+    if (!window.Razorpay) {
+      showError('Razorpay SDK not loaded. Please refresh and try again.');
+      setIsProcessing(false);
+      return;
+    }
+
+    const options: RazorpayOptions = {
+      key: paymentData.key_id || razorpayKeyId,
+      amount: paymentData.amount,
+      currency: paymentData.currency || 'INR',
+      name: 'SP Aroma',
+      description: `Order #${paymentData.order_id}`,
+      order_id: paymentData.razorpay_order_id,
+      handler: async (response: RazorpayResponse) => {
+        // Payment successful on Razorpay's end — verify on server
+        try {
+          const verifyResult = await apiVerifyPayment({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+          });
+
+          if (verifyResult.verified) {
+            setOrderId(verifyResult.order_id);
+            setPaymentSuccess(true);
+            clearCart();
+            showSuccess('Payment successful! Order placed.');
+          } else {
+            showError('Payment verification failed. Please contact support.');
+          }
+        } catch (err: any) {
+          console.error('Payment verification error:', err);
+          const errorMsg = err?.body?.detail || err?.message || 'Payment verification failed';
+          showError(errorMsg);
+        } finally {
+          setIsProcessing(false);
+        }
+      },
+      prefill: {
+        name: user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : '',
+        email: user?.email || '',
+        contact: address?.phone || '',
+      },
+      notes: {
+        order_id: String(paymentData.order_id),
+      },
+      theme: {
+        color: '#1a1a2e',
+      },
+      modal: {
+        ondismiss: () => {
+          setIsProcessing(false);
+          showError('Payment cancelled. You can retry from your orders page.');
+        },
+        escape: true,
+        confirm_close: true,
+      },
+    };
+
+    const rzp = new window.Razorpay(options);
+
+    rzp.on('payment.failed', (response: any) => {
+      console.error('Razorpay payment failed:', response.error);
+      setIsProcessing(false);
+      showError(
+        response.error?.description ||
+        'Payment failed. Please try again.'
+      );
+    });
+
+    rzp.open();
   };
 
   const handleMakePayment = async () => {

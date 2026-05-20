@@ -63,7 +63,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         type: (it.type || 'Perfume') as any,
         price: it.price ? `₹${it.price}` : (it.display_price ?? '₹0'),
         originalPrice: undefined,
-        imageUrl: (it.image_url ?? it.imageUrl ?? it.media?.[0]?.src) || '',
+        imageUrl: it.image_url || it.imageUrl || '',
         categories: it.categories ?? [],
         shortDescription: it.description ?? it.shortDescription ?? '',
         longDescription: it.longDescription ?? '',
