@@ -19,6 +19,7 @@ class CartItemOut(BaseModel):
     product_id: int
     variant_id: Optional[int]
     product_name: str = ""
+    variant_name: str = ""
     image_url: str = ""
     quantity: int
     price: float

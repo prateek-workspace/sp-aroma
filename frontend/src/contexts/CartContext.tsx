@@ -59,6 +59,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         id: it.product_id ?? it.variant_id ?? it.id ?? 0,
         cartItemId: it.item_id ?? it.id,
         variantId: it.variant_id,
+        variantName: it.variant_name || '',
         name: it.product_name ?? it.name ?? '',
         type: (it.type || 'Perfume') as any,
         price: it.price ? `₹${it.price}` : (it.display_price ?? '₹0'),

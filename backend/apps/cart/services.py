@@ -30,10 +30,13 @@ class CartService:
         total = 0
 
         for item in cart.items:
-            if item.variant_id:
-                price = float(item.variant.price)
-            else:
-                price = float(item.product.price)
+            # Resolve price: prefer the explicit variant, fall back to the
+            # product's first variant (Product itself has no price column).
+            price = 0.0
+            if item.variant_id and item.variant is not None:
+                price = float(item.variant.price or 0)
+            elif item.product and item.product.variants:
+                price = float(item.product.variants[0].price or 0)
 
             subtotal = price * item.quantity
             total += subtotal
@@ -52,11 +55,24 @@ class CartService:
                 if not image_url:
                     image_url = item.product.media[0].src
 
+            # Get variant name from option items
+            variant_name = ""
+            if item.variant_id and item.variant:
+                from apps.products.models import ProductOptionItem
+                option_names = []
+                for opt_id in [item.variant.option1, item.variant.option2, item.variant.option3]:
+                    if opt_id:
+                        opt_item = ProductOptionItem.filter(ProductOptionItem.id == opt_id).first()
+                        if opt_item:
+                            option_names.append(opt_item.item_name)
+                variant_name = " / ".join(option_names) if option_names else ""
+
             items.append({
                 "id": item.id,
                 "product_id": item.product_id,
                 "variant_id": item.variant_id,
                 "product_name": product_name,
+                "variant_name": variant_name,
                 "image_url": image_url,
                 "quantity": item.quantity,
                 "price": price,
@@ -76,6 +92,9 @@ class CartService:
             joinedload(Cart.items)
                 .joinedload(CartItem.product)
                 .joinedload(Product.media),
+            joinedload(Cart.items)
+                .joinedload(CartItem.product)
+                .joinedload(Product.variants),
             joinedload(Cart.items).joinedload(CartItem.variant)
         ).filter(Cart.id == cart_id).first()
 
@@ -138,6 +157,9 @@ class CartService:
                 joinedload(Cart.items)
                     .joinedload(CartItem.product)
                     .joinedload(Product.media),
+                joinedload(Cart.items)
+                    .joinedload(CartItem.product)
+                    .joinedload(Product.variants),
                 joinedload(Cart.items).joinedload(CartItem.variant)
             ).filter_by(user_id=user_id).first()
 

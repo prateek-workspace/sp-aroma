@@ -68,12 +68,14 @@ const ProductDetailPage = () => {
             .map((m: any) => m.src)
         }));
 
+        const firstImage = productImages.length > 0 ? productImages[0] : '/placeholder.png';
         const mapped = {
           id: p.product_id,
           name: p.product_name,
           type: p.product_type === 'attar' ? 'Attar' : 'Perfume',
           price: p.price || (variantsWithImages[0] ? variantsWithImages[0].price : 0),
           originalPrice: undefined,
+          imageUrl: firstImage,
           productImages: productImages.length > 0 ? productImages : ['/placeholder.png'],
           categories: [],
           category: p.category,
@@ -146,9 +148,14 @@ const ProductDetailPage = () => {
   const handleAddToCart = async () => {
     if (product && selectedVariant) {
       try {
+        // Use variant-specific image if available, else fall back to product image
+        const variantImage = selectedVariant.images && selectedVariant.images.length > 0
+          ? selectedVariant.images[0]
+          : product.imageUrl;
         const cartProduct = {
           ...product,
           price: `₹${selectedVariant.price}`,
+          imageUrl: variantImage,
           variantId: selectedVariant.variant_id,
           variantName: getVariantLabel(selectedVariant),
         };

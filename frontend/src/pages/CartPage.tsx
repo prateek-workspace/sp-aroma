@@ -52,8 +52,25 @@ const CartPage = () => {
             <div className="lg:col-span-2 bg-white p-6 sm:p-8 rounded-lg shadow-md">
               <div className="space-y-6">
                 {cartItems.map(item => (
-                  <div key={item.id} className="flex flex-col sm:flex-row items-center gap-6 border-b border-gray-200 pb-6 last:border-b-0">
-                    <img src={item.imageUrl} alt={item.name} className="w-24 h-24 object-cover rounded-md" />
+                  <div key={`${item.id}-${(item as any).variantId || ''}`} className="flex flex-col sm:flex-row items-center gap-6 border-b border-gray-200 pb-6 last:border-b-0">
+                    {item.imageUrl ? (
+                      <img 
+                        src={item.imageUrl} 
+                        alt={item.name} 
+                        className="w-24 h-24 object-cover rounded-md bg-primary-bg"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.parentElement?.insertAdjacentHTML('afterbegin', 
+                            '<div class="w-24 h-24 rounded-md bg-primary-bg flex items-center justify-center text-heading text-xs text-center p-2">No Image</div>'
+                          );
+                        }}
+                      />
+                    ) : (
+                      <div className="w-24 h-24 rounded-md bg-primary-bg flex items-center justify-center text-heading text-xs text-center p-2">
+                        No Image
+                      </div>
+                    )}
                     <div className="flex-1 text-center sm:text-left">
                       <h3 className="text-xl font-light tracking-widest">{item.name}</h3>
                       <p className="text-sm text-muted-foreground">{item.type}</p>
@@ -104,10 +121,6 @@ const CartPage = () => {
                 <div className="flex justify-between text-foreground">
                   <span>Subtotal ({cartCount} items)</span>
                   <span className="font-sans">₹{cartTotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-foreground">
-                  <span>Shipping</span>
-                  <span className="font-sans text-sm">Calculated at checkout</span>
                 </div>
               </div>
               <div className="flex justify-between text-xl font-bold text-dark-text border-t border-gray-200 mt-6 pt-4">

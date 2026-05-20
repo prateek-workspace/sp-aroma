@@ -272,6 +272,7 @@ export const invalidateCache = async (type?: 'products' | 'user' | 'cart' | 'ord
     await ProductCache.clear();
     UserCache.clear();
     await CartCache.clear();
+    localStorage.removeItem('sp_aroma_cart_data');
     await OrdersCache.clear();
     await AddressesCache.clear();
   } else if (type === 'products') {
@@ -280,6 +281,7 @@ export const invalidateCache = async (type?: 'products' | 'user' | 'cart' | 'ord
     UserCache.clear();
   } else if (type === 'cart') {
     await CartCache.clear();
+    localStorage.removeItem('sp_aroma_cart_data');
   } else if (type === 'orders') {
     await OrdersCache.clear();
   } else if (type === 'addresses') {

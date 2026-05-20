@@ -84,9 +84,12 @@ const LoginForm = ({ setViewMode }: { setViewMode: (mode: ViewMode) => void }) =
   const navigate = useNavigate();
   const { login } = useAuth();
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     setError('');
     const form = e.currentTarget as HTMLFormElement;
     const fd = new FormData(form);
@@ -95,8 +98,7 @@ const LoginForm = ({ setViewMode }: { setViewMode: (mode: ViewMode) => void }) =
 
     try {
       const resp: any = await apiLogin(email, password);
-      console.log('login response raw:', resp);
-      
+
       let token: string | null = null;
       if (!resp) token = null;
       else if (typeof resp === 'string') {
@@ -105,13 +107,15 @@ const LoginForm = ({ setViewMode }: { setViewMode: (mode: ViewMode) => void }) =
         token = (resp?.access_token as string) ?? (resp?.token as string) ?? (resp?.data?.access_token as string) ?? null;
       }
       if (!token) throw { message: 'No token received', resp };
-      
+
       await login(resp);
       navigate('/');
     } catch (err: any) {
       console.error('login error', err);
       const errorMsg = err?.body?.detail || err?.message || 'Login failed. Please check your credentials.';
       setError(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -130,9 +134,10 @@ const LoginForm = ({ setViewMode }: { setViewMode: (mode: ViewMode) => void }) =
         </div>
         <button
           type="submit"
-          className="w-full bg-heading text-white font-sans uppercase text-lg tracking-wider py-3.5 rounded-md hover:bg-opacity-90 transition-colors !mt-8"
+          disabled={submitting}
+          className="w-full bg-heading text-white font-sans uppercase text-lg tracking-wider py-3.5 rounded-md hover:bg-opacity-90 transition-colors !mt-8 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          Log In
+          {submitting ? 'Logging in…' : 'Log In'}
         </button>
       </form>
     </div>

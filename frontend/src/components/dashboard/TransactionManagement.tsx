@@ -25,7 +25,7 @@ const TransactionManagement = () => {
   const loadPayments = async () => {
     setLoading(true);
     try {
-      const res = await apiGetAllPayments();
+      const res = await apiGetAllPayments(0, 1000);
       setPayments(res?.payments || []);
     } catch (err) {
       console.error('Failed to load payments', err);
@@ -34,33 +34,37 @@ const TransactionManagement = () => {
     }
   };
 
+  const SUCCESS_STATUSES = ['SUCCESS', 'CAPTURED', 'COMPLETED', 'PAID'];
+  const PENDING_STATUSES = ['PENDING', 'CREATED', 'PROCESSING'];
+  const FAILED_STATUSES = ['FAILED', 'REFUNDED', 'CANCELLED'];
+
   const filteredPayments = payments.filter((payment) => {
+    const term = searchTerm.trim().toLowerCase();
     const matchesSearch =
-      payment.id.toString().includes(searchTerm) ||
-      payment.order_id.toString().includes(searchTerm) ||
-      payment.razorpay_payment_id?.includes(searchTerm);
-    const matchesStatus = statusFilter === 'ALL' || payment.status.toUpperCase() === statusFilter;
+      !term ||
+      payment.id.toString().includes(term) ||
+      payment.order_id.toString().includes(term) ||
+      (payment.razorpay_payment_id || '').toLowerCase().includes(term) ||
+      (payment.razorpay_order_id || '').toLowerCase().includes(term);
+
+    const status = (payment.status || '').toUpperCase();
+    let matchesStatus = statusFilter === 'ALL' || status === statusFilter;
+    if (statusFilter === 'SUCCESS') matchesStatus = SUCCESS_STATUSES.includes(status);
+    if (statusFilter === 'PENDING') matchesStatus = PENDING_STATUSES.includes(status);
+    if (statusFilter === 'FAILED') matchesStatus = FAILED_STATUSES.includes(status);
     return matchesSearch && matchesStatus;
   });
 
   const getStatusColor = (status: string) => {
-    const s = status.toUpperCase();
-    switch (s) {
-      case 'SUCCESS':
-      case 'CAPTURED':
-        return 'bg-green-100 text-green-800';
-      case 'PENDING':
-      case 'CREATED':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'FAILED':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+    const s = (status || '').toUpperCase();
+    if (SUCCESS_STATUSES.includes(s)) return 'bg-green-100 text-green-800';
+    if (PENDING_STATUSES.includes(s)) return 'bg-yellow-100 text-yellow-800';
+    if (FAILED_STATUSES.includes(s)) return 'bg-red-100 text-red-800';
+    return 'bg-gray-100 text-gray-800';
   };
 
-  const totalRevenue = filteredPayments
-    .filter((p) => p.status.toUpperCase() === 'SUCCESS')
+  const totalRevenue = payments
+    .filter((p) => SUCCESS_STATUSES.includes((p.status || '').toUpperCase()))
     .reduce((sum, p) => sum + Number(p.amount), 0);
 
   return (
@@ -88,9 +92,8 @@ const TransactionManagement = () => {
             className="px-4 py-2 border border-gray-200 rounded-md focus:border-heading focus:ring-1 focus:ring-heading"
           >
             <option value="ALL">All Status</option>
-            <option value="SUCCESS">Success</option>
+            <option value="SUCCESS">Successful</option>
             <option value="PENDING">Pending</option>
-            <option value="CREATED">Created</option>
             <option value="FAILED">Failed</option>
           </select>
         </div>
@@ -101,19 +104,19 @@ const TransactionManagement = () => {
         <div className="bg-green-50 p-4 rounded-lg">
           <p className="text-sm text-gray-600 mb-1">Successful</p>
           <p className="text-2xl font-bold text-green-700">
-            {payments.filter((p) => p.status.toUpperCase() === 'SUCCESS').length}
+            {payments.filter((p) => SUCCESS_STATUSES.includes((p.status || '').toUpperCase())).length}
           </p>
         </div>
         <div className="bg-yellow-50 p-4 rounded-lg">
           <p className="text-sm text-gray-600 mb-1">Pending</p>
           <p className="text-2xl font-bold text-yellow-700">
-            {payments.filter((p) => p.status.toUpperCase() === 'PENDING').length}
+            {payments.filter((p) => PENDING_STATUSES.includes((p.status || '').toUpperCase())).length}
           </p>
         </div>
         <div className="bg-red-50 p-4 rounded-lg">
           <p className="text-sm text-gray-600 mb-1">Failed</p>
           <p className="text-2xl font-bold text-red-700">
-            {payments.filter((p) => p.status.toUpperCase() === 'FAILED').length}
+            {payments.filter((p) => FAILED_STATUSES.includes((p.status || '').toUpperCase())).length}
           </p>
         </div>
         <div className="bg-blue-50 p-4 rounded-lg">

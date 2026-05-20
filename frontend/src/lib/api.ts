@@ -436,27 +436,36 @@ export const apiDeleteAddress = async (addressId: number) => {
 // ===============================
 export const apiGetCart = async () => {
   try {
-    // Check cache first for instant response
-    const cached = await CartCache.get();
-    if (cached && !CartCache.isExpired()) {
-      console.log('✅ Returning cached cart data (instant)');
-      
-      // Background refresh to keep data fresh
-      getJson('/cart/').then(async (freshData) => {
-        if (freshData) {
-          await CartCache.set(freshData);
-          console.log('🔄 Cart cache refreshed in background');
+    // Check localStorage cache first for instant response
+    const cachedStr = localStorage.getItem('sp_aroma_cart_data');
+    if (cachedStr) {
+      try {
+        const cached = JSON.parse(cachedStr);
+        const age = Date.now() - (cached._timestamp || 0);
+        if (age < 5 * 60 * 1000) { // 5 minutes
+          console.log('✅ Returning cached cart data (instant)');
+          
+          // Background refresh to keep data fresh
+          getJson('/cart/').then(async (freshData) => {
+            if (freshData) {
+              localStorage.setItem('sp_aroma_cart_data', JSON.stringify({ ...freshData, _timestamp: Date.now() }));
+              console.log('🔄 Cart cache refreshed in background');
+            }
+          }).catch(err => console.warn('Background cart refresh failed:', err));
+          
+          const { _timestamp, ...data } = cached;
+          return data;
         }
-      }).catch(err => console.warn('Background cart refresh failed:', err));
-      
-      return cached;
+      } catch (e) {
+        localStorage.removeItem('sp_aroma_cart_data');
+      }
     }
     
     // Cache miss - fetch from API
     console.log('⚠️ Cart cache miss - fetching from API');
     const response = await getJson('/cart/');
     if (response) {
-      await CartCache.set(response);
+      localStorage.setItem('sp_aroma_cart_data', JSON.stringify({ ...response, _timestamp: Date.now() }));
     }
     return response;
   } catch (error) {
@@ -605,7 +614,7 @@ export const apiGetAllPayments = (skip: number = 0, limit: number = 100) =>
 // ===============================
 // ATTRIBUTES API
 // ===============================
-export const apiGetAttributes = () => getJson('/attributes');
+export const apiGetAttributes = () => getJson('/attributes/');
 
 export const formatIST = (dateStr: string): string => {
   if (!dateStr) return '—';

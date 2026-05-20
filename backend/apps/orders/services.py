@@ -402,30 +402,69 @@ class OrderService:
 
     @staticmethod
     def update_order_status(user_id: int | None, order_id: int, new_status: str, is_user: bool = True):
-        """Update order status - user can only cancel, admin can update to anything"""
+        """Update order status - user can only cancel, admin can update to anything.
+
+        On every successful status transition we send a branded status-update
+        email to the order owner (skipped only if status didn't actually change).
+        """
         with SessionLocal() as session:
             query = session.query(Order).filter(Order.id == order_id)
-            
+
             if is_user and user_id:
                 query = query.filter(Order.user_id == user_id)
                 # Users can only cancel or request cancellation
                 if new_status.upper() not in ["CANCELLED", "CANCEL_REQUESTED"]:
                     raise HTTPException(status_code=403, detail="Users can only cancel orders")
-            
+
             order = query.first()
-            
+
             if not order:
                 raise HTTPException(status_code=404, detail="Order not found")
-            
+
             # Validate status
             if new_status.upper() not in VALID_ORDER_STATUSES:
                 raise HTTPException(status_code=400, detail=f"Invalid order status: {new_status}")
-            
-            order.status = new_status.upper()
+
+            previous_status = (order.status or "").upper()
+            new_status_upper = new_status.upper()
+            order.status = new_status_upper
             session.commit()
             session.refresh(order)
-            
-            return OrderService._serialize(order)
+
+            serialized = OrderService._serialize_in_session(session, order)
+
+            # Notify the customer via email — only when status actually changed.
+            if previous_status != new_status_upper:
+                try:
+                    from apps.core.services.email_manager import EmailService
+                    from apps.accounts.models import User
+
+                    owner = session.query(User).filter(User.id == order.user_id).first()
+                    if owner and owner.email:
+                        created_at = order.created_at.strftime('%B %d, %Y at %I:%M %p') if order.created_at else 'N/A'
+                        items_for_email = [
+                            {
+                                "product_name": it.get("product_name", "Item"),
+                                "quantity": it.get("quantity", 1),
+                                "price": it.get("subtotal", it.get("price", 0)),
+                            }
+                            for it in serialized.get("items", [])
+                        ]
+                        EmailService.send_order_status_update_email(
+                            owner.email,
+                            {
+                                "order_id": order.id,
+                                "status": new_status_upper,
+                                "created_at": created_at,
+                                "total_amount": float(order.total_amount or 0),
+                                "items": items_for_email,
+                            },
+                        )
+                except Exception as e:
+                    # Email failure should never block the status update
+                    print(f"Failed to send order status email for order {order.id}: {e}")
+
+            return serialized
 
     @staticmethod
     def get_analytics():
