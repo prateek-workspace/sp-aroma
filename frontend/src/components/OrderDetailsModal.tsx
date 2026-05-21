@@ -1,6 +1,31 @@
-import { X } from 'lucide-react';
+import { ImageOff, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { apiGetOrder, apiGetAdminOrder } from '../lib/api';
+import { apiGetOrder, apiGetAdminOrder, formatIST } from '../lib/api';
+
+const OrderItemImage = ({ src, alt }: { src?: string; alt: string }) => {
+  const [broken, setBroken] = useState(false);
+
+  useEffect(() => {
+    setBroken(false);
+  }, [src]);
+
+  if (!src || broken) {
+    return (
+      <div className="w-20 h-20 rounded-md bg-gray-100 flex items-center justify-center text-gray-400">
+        <ImageOff size={28} />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="w-20 h-20 object-cover rounded-md"
+      onError={() => setBroken(true)}
+    />
+  );
+};
 
 interface OrderDetailsModalProps {
   isOpen: boolean;
@@ -87,7 +112,7 @@ const OrderDetailsModal = ({ isOpen, onClose, orderId, isAdmin = false }: OrderD
                 <div>
                   <h3 className="text-xl font-bold text-dark-text">Order #{orderIdDisplay}</h3>
                   <p className="text-sm text-foreground mt-1">
-                    Placed on: {new Date(orderDate).toLocaleString()}
+                    Placed on: {formatIST(orderDate)}
                   </p>
                   {userInfo && (
                     <div className="mt-3 text-sm">
@@ -123,19 +148,12 @@ const OrderDetailsModal = ({ isOpen, onClose, orderId, isAdmin = false }: OrderD
                     const itemQty = item.quantity ?? item.qty ?? 1;
                     const itemPrice = Number(item.price ?? item.unit_price ?? 0);
                     const itemSubtotal = Number(item.subtotal ?? (itemPrice * itemQty));
-                    const itemImage =
-                      item.imageUrl || item.image_url || item.media?.[0]?.src || '/placeholder.png';
+                    const itemImage: string | undefined =
+                      item.imageUrl || item.image_url || item.media?.[0]?.src || undefined;
 
                     return (
                       <div key={index} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                        <img
-                          src={itemImage}
-                          alt={itemName}
-                          className="w-20 h-20 object-cover rounded-md"
-                          onError={(e) => {
-                            e.currentTarget.src = '/placeholder.png';
-                          }}
-                        />
+                        <OrderItemImage src={itemImage} alt={itemName} />
                         <div className="flex-1">
                           <h5 className="font-medium text-dark-text">{itemName}</h5>
                           <p className="text-sm text-foreground mt-1">Quantity: {itemQty}</p>

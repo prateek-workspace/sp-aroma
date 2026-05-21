@@ -616,17 +616,35 @@ export const apiGetAllPayments = (skip: number = 0, limit: number = 100) =>
 // ===============================
 export const apiGetAttributes = () => getJson('/attributes/');
 
-export const formatIST = (dateStr: string): string => {
-  if (!dateStr) return '—';
-  const date = new Date(dateStr + (dateStr.includes('Z') ? '' : 'Z')); // treat as UTC
+// Treat naive backend timestamps as UTC and render in Asia/Kolkata (IST, GMT+5:30).
+const _toIST = (dateStr: string | null | undefined): Date | null => {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + (dateStr.includes('Z') || /[+-]\d{2}:?\d{2}$/.test(dateStr) ? '' : 'Z'));
+  return isNaN(d.getTime()) ? null : d;
+};
+
+export const formatIST = (dateStr: string | null | undefined): string => {
+  const date = _toIST(dateStr);
+  if (!date) return '—';
   return date.toLocaleString('en-IN', {
     timeZone: 'Asia/Kolkata',
     day: 'numeric',
-    month: 'numeric', 
+    month: 'numeric',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     hour12: true,
+  });
+};
+
+export const formatISTDate = (dateStr: string | null | undefined): string => {
+  const date = _toIST(dateStr);
+  if (!date) return '—';
+  return date.toLocaleDateString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: 'numeric',
+    month: 'numeric',
+    year: 'numeric',
   });
 };

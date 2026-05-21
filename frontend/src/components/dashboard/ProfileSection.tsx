@@ -1,7 +1,7 @@
 import { Mail, Lock } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { apiUpdateCurrentUser, apiChangePassword } from '../../lib/api';
+import { apiUpdateCurrentUser, apiChangePassword, formatIST } from '../../lib/api';
 
 const ProfileSection = () => {
   const { user, refreshUser } = useAuth();
@@ -115,8 +115,8 @@ const ProfileSection = () => {
 
           <div className="text-sm text-gray-600 space-y-1">
             <div>Verified: {verified ? 'Yes ✓' : 'No ✗'}</div>
-            <div>Joined: {joined ? new Date(joined).toLocaleString() : '—'}</div>
-            <div>Last login: {lastLogin ? new Date(lastLogin).toLocaleString() : '—'}</div>
+            <div>Joined: {formatIST(joined)}</div>
+            <div>Last login: {formatIST(lastLogin)}</div>
           </div>
 
           <div className="pt-4">

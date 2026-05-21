@@ -61,9 +61,15 @@ class OrderService:
                     if item.variant_id:
                         variant_ids.add(item.variant_id)
 
+            from sqlalchemy.orm import joinedload as _joinedload
             products_map = {}
             if product_ids:
-                products = session.query(Product).filter(Product.id.in_(product_ids)).all()
+                products = (
+                    session.query(Product)
+                    .options(_joinedload(Product.media))
+                    .filter(Product.id.in_(product_ids))
+                    .all()
+                )
                 products_map = {p.id: p for p in products}
 
             variants_map = {}
@@ -96,10 +102,19 @@ class OrderService:
                 items_list = []
                 for item in order.items:
                     product = products_map.get(item.product_id)
+                    image_url = ""
+                    if product and product.media:
+                        if item.variant_id:
+                            vm = next((m for m in product.media if m.variant_id == item.variant_id), None)
+                            if vm:
+                                image_url = vm.src
+                        if not image_url:
+                            image_url = product.media[0].src
                     items_list.append({
                         "product_id": item.product_id,
                         "product_name": product.product_name if product else "Unknown Product",
                         "variant_id": item.variant_id,
+                        "image_url": image_url,
                         "quantity": item.quantity,
                         "price": float(item.price),
                         "subtotal": float(item.price * item.quantity),
@@ -173,9 +188,15 @@ class OrderService:
                 users = session.query(User).filter(User.id.in_(user_ids)).all()
                 users_map = {u.id: u for u in users}
 
+            from sqlalchemy.orm import joinedload as _joinedload
             products_map = {}
             if product_ids:
-                products = session.query(Product).filter(Product.id.in_(product_ids)).all()
+                products = (
+                    session.query(Product)
+                    .options(_joinedload(Product.media))
+                    .filter(Product.id.in_(product_ids))
+                    .all()
+                )
                 products_map = {p.id: p for p in products}
 
             # Serialize all orders efficiently
@@ -204,10 +225,19 @@ class OrderService:
                 items_list = []
                 for item in order.items:
                     product = products_map.get(item.product_id)
+                    image_url = ""
+                    if product and product.media:
+                        if item.variant_id:
+                            vm = next((m for m in product.media if m.variant_id == item.variant_id), None)
+                            if vm:
+                                image_url = vm.src
+                        if not image_url:
+                            image_url = product.media[0].src
                     items_list.append({
                         "product_id": item.product_id,
                         "product_name": product.product_name if product else "Unknown Product",
                         "variant_id": item.variant_id,
+                        "image_url": image_url,
                         "quantity": item.quantity,
                         "price": float(item.price),
                         "subtotal": float(item.price * item.quantity),
@@ -365,15 +395,27 @@ class OrderService:
             }
         
         # Get items with product details
+        from apps.products.models import ProductMedia
         items_with_details = []
         for item in order.items:
             product = session.query(Product).filter(Product.id == item.product_id).first()
             variant = session.query(ProductVariant).filter(ProductVariant.id == item.variant_id).first() if item.variant_id else None
-            
+
+            # Resolve a Cloudinary image URL — variant image first, then any product image
+            image_url = ""
+            if product:
+                if item.variant_id:
+                    vm = next((m for m in product.media if m.variant_id == item.variant_id), None)
+                    if vm:
+                        image_url = vm.src
+                if not image_url and product.media:
+                    image_url = product.media[0].src
+
             items_with_details.append({
                 "product_id": item.product_id,
                 "product_name": product.product_name if product else "Unknown Product",
                 "variant_id": item.variant_id,
+                "image_url": image_url,
                 "quantity": item.quantity,
                 "price": float(item.price),
                 "subtotal": float(item.price * item.quantity),

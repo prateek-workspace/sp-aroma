@@ -477,6 +477,17 @@ class ProductService:
     def delete_product(product_id: int):
         product = Product.get_or_404(product_id)
 
+        # Cart items have real FKs to products/variants and will block the
+        # cascade delete of the product's variants. Remove them up front —
+        # they belong to active carts, not to historical orders, so dropping
+        # them when their product disappears is the right behavior.
+        from apps.cart.models import CartItem
+        with SessionLocal() as session:
+            session.query(CartItem).filter(CartItem.product_id == product_id).delete(
+                synchronize_session=False
+            )
+            session.commit()
+
         # delete all cloudinary images first
         media_list = ProductMedia.filter(ProductMedia.product_id == product_id).all()
         for media in media_list:

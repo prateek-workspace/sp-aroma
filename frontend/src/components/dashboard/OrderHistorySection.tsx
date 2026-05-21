@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiGetOrders } from '../../lib/api';
+import { apiGetOrders, formatIST } from '../../lib/api';
 import OrderDetailsModal from '../OrderDetailsModal';
 import { Pagination } from '../Pagination';
 
@@ -77,7 +77,7 @@ const OrderHistorySection = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4">
                   <div className="flex-1">
                     <h3 className="font-bold text-base sm:text-lg text-dark-text">Order #{orderId}</h3>
-                    <p className="text-xs sm:text-sm text-foreground mt-1">Date: {orderDate}</p>
+                    <p className="text-xs sm:text-sm text-foreground mt-1">Date: {formatIST(orderDate)}</p>
                   </div>
                   <div className="flex items-center gap-3 sm:gap-4">
                     <span className={`px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded-full whitespace-nowrap ${getStatusColor(orderStatus)}`}>
@@ -88,14 +88,27 @@ const OrderHistorySection = () => {
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4 border-t border-gray-200 pt-4">
                   <div className="flex -space-x-2 sm:-space-x-4">
-                    {orderItems.slice(0, 3).map((item: any, index: number) => (
-                      <img
-                        key={index}
-                        src={item.imageUrl || item.image_url || item.media?.[0]?.src || '/placeholder.png'}
-                        alt={item.name || item.product_name}
-                        className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-full border-2 border-white shadow-sm"
-                      />
-                    ))}
+                    {orderItems.slice(0, 3).map((item: any, index: number) => {
+                      const src = item.imageUrl || item.image_url || item.media?.[0]?.src;
+                      return src ? (
+                        <img
+                          key={index}
+                          src={src}
+                          alt={item.name || item.product_name}
+                          className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-full border-2 border-white shadow-sm"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div
+                          key={index}
+                          className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 border-white shadow-sm bg-gray-100 flex items-center justify-center text-[10px] text-gray-400"
+                        >
+                          no img
+                        </div>
+                      );
+                    })}
                     {orderItems.length > 3 && (
                       <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-xs sm:text-sm font-semibold text-gray-600">
                         +{orderItems.length - 3}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiGetAllPayments } from '../../lib/api';
+import { apiGetAllPayments, formatIST } from '../../lib/api';
 import { Search } from 'lucide-react';
 
 interface Payment {
@@ -169,7 +169,7 @@ const TransactionManagement = () => {
                   </td>
                   <td className="py-4">
                     <span className="text-sm text-gray-600">
-                      {new Date(payment.created_at).toLocaleString()}
+                      {formatIST(payment.created_at)}
                     </span>
                   </td>
                 </tr>

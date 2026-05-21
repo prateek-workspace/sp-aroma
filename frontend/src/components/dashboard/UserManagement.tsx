@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiGetAllUsers, apiUpdateUser, apiDeleteUser } from '../../lib/api';
+import { apiGetAllUsers, apiUpdateUser, apiDeleteUser, formatISTDate } from '../../lib/api';
 import { Search, Edit, Trash2, Check, X, UserCheck, UserX, Shield } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import { useConfirm } from '../../contexts/ConfirmDialogContext';
@@ -239,7 +239,7 @@ const ViewRow = ({
       )}
     </td>
     <td className="py-4 pr-4">
-      <p className="text-sm text-gray-600">{new Date(user.date_joined).toLocaleDateString()}</p>
+      <p className="text-sm text-gray-600">{formatISTDate(user.date_joined)}</p>
     </td>
     <td className="py-4">
       <div className="flex gap-2">

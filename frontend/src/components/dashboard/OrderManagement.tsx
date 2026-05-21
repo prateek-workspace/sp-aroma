@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiGetAllOrders, apiAdminUpdateOrderStatus } from '../../lib/api';
+import { apiGetAllOrders, apiAdminUpdateOrderStatus, formatISTDate } from '../../lib/api';
 import { Search, Eye } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import { useConfirm } from '../../contexts/ConfirmDialogContext';
@@ -166,7 +166,7 @@ const OrderManagement = () => {
                       </td>
                       <td className="py-3 sm:py-4 px-4">
                         <span className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
-                          {new Date(orderDate).toLocaleDateString()}
+                          {formatISTDate(orderDate)}
                         </span>
                       </td>
                       <td className="py-3 sm:py-4 px-4">
